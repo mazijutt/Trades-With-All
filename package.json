@@ -1,0 +1,21 @@
+{
+  "name": "tether-gold-exchange",
+  "version": "1.0.0",
+  "description": "TetherGoldExchange - Secure cryptocurrency trading platform",
+  "scripts": {
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "client": "cd client && npm run dev",
+    "server": "cd server && npm run dev",
+    "build": "cd client && npm run build",
+    "start": "cd server && npm start",
+    "seed": "cd server && npm run seed"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "mongodb": "^7.6.0",
+    "mongoose": "^9.10.0"
+  }
+}
