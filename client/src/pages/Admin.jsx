@@ -47,7 +47,18 @@ import {
   Gift,
   Headphones,
   Pencil,
+  RefreshCw,
 } from 'lucide-react';
+
+function asArray(value, keys = []) {
+  if (Array.isArray(value)) return value;
+  if (value && typeof value === 'object') {
+    for (const key of keys) {
+      if (Array.isArray(value[key])) return value[key];
+    }
+  }
+  return [];
+}
 
 const TABS = [
   { id: 'users', label: 'Users', icon: Users },
@@ -585,7 +596,7 @@ function VerifyTab({ onRefresh }) {
     setLoading(true);
     try {
       const { data } = await api.get('/admin/users');
-      setUsers(Array.isArray(data) ? data : data.users || []);
+      setUsers(asArray(data, ['users', 'data']));
     } catch (err) {
       console.error(err);
     } finally {
@@ -635,7 +646,7 @@ function VerifyTab({ onRefresh }) {
       ) : (
         <div className="space-y-3">
           {filtered.map((u) => (
-            <div key={u.id} className="bg-white rounded-xl shadow-sm border border-sky-100 p-4">
+            <div key={u._id || u.id} className="bg-white rounded-xl shadow-sm border border-sky-100 p-4">
               <div className="flex items-start justify-between">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
@@ -650,14 +661,14 @@ function VerifyTab({ onRefresh }) {
                 </div>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => handleVerify(u.id, 'verified')}
+                    onClick={() => handleVerify(u._id || u.id, 'verified')}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors"
                   >
                     <CheckCircle className="w-3.5 h-3.5" />
                     Verify
                   </button>
                   <button
-                    onClick={() => handleVerify(u.id, 'unverified')}
+                    onClick={() => handleVerify(u._id || u.id, 'unverified')}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
                   >
                     <XCircle className="w-3.5 h-3.5" />
@@ -687,7 +698,7 @@ function TransactionsTab() {
     setLoading(true);
     try {
       const { data } = await api.get('/transactions/all');
-      setTransactions(Array.isArray(data) ? data : data.transactions || []);
+      setTransactions(asArray(data, ['transactions', 'data']));
     } catch (err) {
       console.error(err);
     } finally {
@@ -833,7 +844,7 @@ function TradeDataTab() {
     setLoading(true);
     try {
       const { data } = await api.get('/admin/trades');
-      setTrades(Array.isArray(data) ? data : data.trades || []);
+      setTrades(asArray(data, ['trades', 'data']));
     } catch (err) {
       console.error(err);
     } finally {
@@ -862,8 +873,8 @@ function TradeDataTab() {
     lost: trades.filter((t) => t.status === 'lost').length,
   };
 
-  const totalVolume = trades.reduce((sum, t) => sum + (t.amount || 0), 0);
-  const totalPL = trades.reduce((sum, t) => sum + (t.profit_loss || 0), 0);
+  const totalVolume = trades.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+  const totalPL = trades.reduce((sum, t) => sum + (Number(t.profit_loss) || 0), 0);
 
   const filtered = trades.filter((t) => {
     if (filter !== 'all' && t.status !== filter) return false;
@@ -1047,12 +1058,12 @@ function WalletsTab({ users = [] }) {
 
   async function fetchWallets() {
     const { data } = await api.get('/wallets/all');
-    setWallets(Array.isArray(data) ? data : data.wallets || []);
+    setWallets(asArray(data, ['wallets', 'data']));
   }
 
   async function fetchBanks() {
     const { data } = await api.get('/banks/all');
-    setBanks(Array.isArray(data) ? data : data.banks || []);
+    setBanks(asArray(data, ['banks', 'data']));
   }
 
   async function fetchSettings() {
@@ -1544,7 +1555,7 @@ function FDPlansTab() {
     setLoading(true);
     try {
       const { data } = await api.get('/fixed-deposits');
-      setPlans(Array.isArray(data) ? data : []);
+      setPlans(asArray(data, ['plans', 'fixedDeposits', 'data']));
     } catch (err) {
       setMessage(err?.response?.data?.message || 'Failed to load FD plans');
     } finally {
@@ -1586,11 +1597,18 @@ function FDPlansTab() {
     setSaving(true);
     setMessage('');
     try {
+      const payload = {
+        ...form,
+        interest_rate: Number(form.interest_rate),
+        min_amount: Number(form.min_amount) || 0,
+        max_amount: Number(form.max_amount) || 0,
+        sort_order: Number(form.sort_order) || 0,
+      };
       if (editingId) {
-        await api.put(`/fixed-deposits/${editingId}`, form);
+        await api.put(`/fixed-deposits/${editingId}`, payload);
         setMessage('FD plan updated successfully.');
       } else {
-        await api.post('/fixed-deposits', form);
+        await api.post('/fixed-deposits', payload);
         setMessage('FD plan created successfully.');
       }
       resetForm();
@@ -1694,7 +1712,7 @@ export default function Admin() {
       if (statsRes.status === 'fulfilled') setStats(statsRes.value.data);
       if (usersRes.status === 'fulfilled') {
         const udata = usersRes.value.data;
-        setUsers(Array.isArray(udata) ? udata : udata.users || []);
+        setUsers(asArray(udata, ['users', 'data']));
       }
     } catch (err) {
       console.error(err);
@@ -1750,7 +1768,7 @@ export default function Admin() {
               </div>
             )}
 
-            <div className="grid grid-cols-6 gap-2 bg-white p-1.5 rounded-xl shadow-sm border border-sky-100">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 bg-white p-1.5 rounded-xl shadow-sm border border-sky-100">
               {TABS.map((tab) => {
                 const TabIcon = tab.icon;
                 return (
@@ -1786,7 +1804,7 @@ export default function Admin() {
                   </div>
                   <div className="space-y-3">
                     {filteredUsers.map((u) => (
-                      <UserCard key={u.id} user={u} onRefresh={fetchAdminData} />
+                      <UserCard key={u._id || u.id} user={u} onRefresh={fetchAdminData} />
                     ))}
                     {filteredUsers.length === 0 && (
                       <div className="text-center py-12">
