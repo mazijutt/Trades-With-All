@@ -160,6 +160,8 @@ export default function Trade() {
       const { data } = await api.get(`/prices/ohlc/${coinId}?days=1`);
       if (Array.isArray(data) && data.length > 0) {
         await renderCandlestickChart(data);
+      } else {
+        console.warn('OHLC endpoint returned no candle data:', data);
       }
     } catch (err) {
       console.error('Failed to fetch OHLC data:', err);
@@ -231,15 +233,85 @@ export default function Trade() {
       chartResizeHandlerRef.current = handleChartResize;
     }
 
-    const candles = ohlcData.map(p => ({
-      time: Math.floor(p[0] / 1000),
-      open: p[1],
-      high: p[2],
-      low: p[3],
-      close: p[4],
-    }));
+    // Normalize the API response before passing it to lightweight-charts.
+    // The chart requires numeric UNIX seconds, strictly ascending and unique.
+    const toUnixSeconds = (value) => {
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        return Math.floor(value > 1e12 ? value / 1000 : value);
+      }
+
+      if (typeof value === 'string') {
+        const numeric = Number(value);
+        if (Number.isFinite(numeric)) {
+          return Math.floor(numeric > 1e12 ? numeric / 1000 : numeric);
+        }
+
+        const parsed = Date.parse(value);
+        if (Number.isFinite(parsed)) {
+          return Math.floor(parsed / 1000);
+        }
+      }
+
+      return NaN;
+    };
+
+    const normalized = ohlcData
+      .map((point) => {
+        // Support both CoinGecko arrays and object-shaped OHLC responses.
+        const rawTime = Array.isArray(point)
+          ? point[0]
+          : (point?.time ?? point?.timestamp ?? point?.date);
+
+        const open = Number(Array.isArray(point) ? point[1] : point?.open);
+        const high = Number(Array.isArray(point) ? point[2] : point?.high);
+        const low = Number(Array.isArray(point) ? point[3] : point?.low);
+        const close = Number(Array.isArray(point) ? point[4] : point?.close);
+        const time = toUnixSeconds(rawTime);
+
+        if (
+          !Number.isFinite(time) ||
+          !Number.isFinite(open) ||
+          !Number.isFinite(high) ||
+          !Number.isFinite(low) ||
+          !Number.isFinite(close) ||
+          open <= 0 ||
+          high <= 0 ||
+          low <= 0 ||
+          close <= 0
+        ) {
+          return null;
+        }
+
+        return {
+          time,
+          open,
+          high: Math.max(high, open, close, low),
+          low: Math.min(low, open, close, high),
+          close,
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.time - b.time);
+
+    // Remove duplicate timestamps. lightweight-charts requires unique,
+    // strictly ascending time values.
+    const candles = [];
+    let lastTime = null;
+
+    for (const candle of normalized) {
+      if (candle.time !== lastTime) {
+        candles.push(candle);
+        lastTime = candle.time;
+      }
+    }
+
+    if (!candles.length) {
+      console.error('No valid OHLC candles returned by /prices/ohlc:', ohlcData);
+      return;
+    }
 
     candleSeriesRef.current.setData(candles);
+    chartRef.current.timeScale().fitContent();
   }
 
   useEffect(() => {
