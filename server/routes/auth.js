@@ -12,20 +12,30 @@ const REFERRAL_BONUS = 5;
 function generateReferralCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = '';
+
   for (let i = 0; i < 8; i++) {
     code += chars[Math.floor(Math.random() * chars.length)];
   }
+
   return code;
 }
 
 async function getUniqueReferralCode() {
   for (let attempt = 0; attempt < 5; attempt++) {
     const code = generateReferralCode();
-    const existing = await User.findOne({ referral_code: code });
+    const existing = await User.findOne({
+      referral_code: code,
+    });
+
     if (!existing) return code;
   }
-  return generateReferralCode() + Date.now().toString(36).toUpperCase().slice(-4);
+
+  return (
+    generateReferralCode() +
+    Date.now().toString(36).toUpperCase().slice(-4)
+  );
 }
+
 
 /* =========================
    REGISTER
@@ -33,7 +43,14 @@ async function getUniqueReferralCode() {
 
 router.post('/register', async (req, res) => {
   try {
-    const { email, password, full_name, referral_code, mobile, country_code } = req.body;
+    const {
+      email,
+      password,
+      full_name,
+      referral_code,
+      mobile,
+      country_code,
+    } = req.body;
 
     console.log('Register request:', email);
 
@@ -55,10 +72,20 @@ router.post('/register', async (req, res) => {
       });
     }
 
-    const masterSetting = await Setting.findOne({ key: 'site_referral_code' });
-    const masterCode = String(masterSetting?.value || 'J9115UTT').trim().toUpperCase();
+    const masterSetting = await Setting.findOne({
+      key: 'site_referral_code',
+    });
 
-    if (String(referral_code).trim().toUpperCase() !== masterCode) {
+    const masterCode = String(
+      masterSetting?.value || 'J9115UTT'
+    )
+      .trim()
+      .toUpperCase();
+
+    if (
+      String(referral_code).trim().toUpperCase() !==
+      masterCode
+    ) {
       return res.status(400).json({
         message: 'Invalid referral code',
       });
@@ -76,16 +103,20 @@ router.post('/register', async (req, res) => {
       });
     }
 
+    /*
+      Master referral code is valid by itself.
+      Only look for a referrer when another valid user
+      actually owns the entered referral code.
+    */
+
     let referrer = null;
-    if (referral_code) {
+
+    if (String(referral_code).trim().toUpperCase() !== masterCode) {
       referrer = await User.findOne({
-        referral_code: String(referral_code).trim().toUpperCase(),
+        referral_code: String(referral_code)
+          .trim()
+          .toUpperCase(),
       });
-      if (!referrer) {
-        return res.status(400).json({
-          message: 'Invalid referral code',
-        });
-      }
     }
 
     const user = await User.create({
@@ -102,6 +133,7 @@ router.post('/register', async (req, res) => {
       referrer.referrals.push(user._id);
       referrer.referral_earnings += REFERRAL_BONUS;
       referrer.balance += REFERRAL_BONUS;
+
       await referrer.save();
 
       await Notification.create({
@@ -122,6 +154,7 @@ router.post('/register', async (req, res) => {
       token,
       user,
     });
+
   } catch (error) {
     console.error('REGISTER ERROR:', error);
 
@@ -168,11 +201,13 @@ router.post('/login', async (req, res) => {
 
     let isMatch = false;
 
-    // Prefer model's comparePassword method if available
     if (typeof user.comparePassword === 'function') {
       isMatch = await user.comparePassword(password);
     } else {
-      isMatch = await bcrypt.compare(password, user.password);
+      isMatch = await bcrypt.compare(
+        password,
+        user.password
+      );
     }
 
     if (!isMatch) {
@@ -203,12 +238,80 @@ router.post('/login', async (req, res) => {
 
 
 /* =========================
+   TEMPORARY CREATE ADMIN
+========================= */
+
+router.post('/create-admin', async (req, res) => {
+  try {
+    const {
+      email,
+      password,
+      full_name,
+    } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({
+        message: 'Email and password are required',
+      });
+    }
+
+    const normalizedEmail = email
+      .toLowerCase()
+      .trim();
+
+    const existingUser = await User.findOne({
+      email: normalizedEmail,
+    });
+
+    if (existingUser) {
+      return res.status(400).json({
+        message: 'User already exists',
+      });
+    }
+
+    const admin = await User.create({
+      email: normalizedEmail,
+      password,
+      full_name: full_name || 'Administrator',
+      role: 'admin',
+      is_verified: true,
+    });
+
+    console.log(
+      'ADMIN CREATED:',
+      admin.email
+    );
+
+    res.status(201).json({
+      message: 'Admin created successfully',
+      email: admin.email,
+      role: admin.role,
+    });
+
+  } catch (error) {
+    console.error(
+      'CREATE ADMIN ERROR:',
+      error
+    );
+
+    res.status(500).json({
+      message:
+        error.message ||
+        'Failed to create admin',
+    });
+  }
+});
+
+
+/* =========================
    CURRENT USER
 ========================= */
 
 router.get('/me', protect, async (req, res) => {
   try {
-    const user = await User.findById(req.user._id);
+    const user = await User.findById(
+      req.user._id
+    );
 
     if (!user) {
       return res.status(404).json({
@@ -217,11 +320,17 @@ router.get('/me', protect, async (req, res) => {
     }
 
     res.json(user);
+
   } catch (error) {
-    console.error('ME ERROR:', error);
+    console.error(
+      'ME ERROR:',
+      error
+    );
 
     res.status(500).json({
-      message: error.message || 'Failed to get user',
+      message:
+        error.message ||
+        'Failed to get user',
     });
   }
 });
@@ -273,10 +382,15 @@ router.put('/me', protect, async (req, res) => {
     res.json(user);
 
   } catch (error) {
-    console.error('UPDATE PROFILE ERROR:', error);
+    console.error(
+      'UPDATE PROFILE ERROR:',
+      error
+    );
 
     res.status(500).json({
-      message: error.message || 'Profile update failed',
+      message:
+        error.message ||
+        'Profile update failed',
     });
   }
 });
@@ -286,109 +400,140 @@ router.put('/me', protect, async (req, res) => {
    VERIFY OTP
 ========================= */
 
-router.post('/verify-otp', protect, async (req, res) => {
-  try {
-    const { otp_code } = req.body;
+router.post(
+  '/verify-otp',
+  protect,
+  async (req, res) => {
+    try {
+      const { otp_code } = req.body;
 
-    const user = await User.findById(req.user._id)
-      .select('+otp_code +otp_expires');
+      const user = await User.findById(
+        req.user._id
+      ).select('+otp_code +otp_expires');
 
-    if (!user) {
-      return res.status(404).json({
-        message: 'User not found',
+      if (!user) {
+        return res.status(404).json({
+          message: 'User not found',
+        });
+      }
+
+      if (!user.otp_code || !user.otp_expires) {
+        return res.status(400).json({
+          message: 'No OTP pending',
+        });
+      }
+
+      if (
+        Date.now() >
+        user.otp_expires.getTime()
+      ) {
+        return res.status(400).json({
+          message: 'OTP expired',
+        });
+      }
+
+      if (user.otp_code !== otp_code) {
+        return res.status(400).json({
+          message: 'Invalid OTP',
+        });
+      }
+
+      user.is_verified = true;
+      user.otp_code = undefined;
+      user.otp_expires = undefined;
+
+      await user.save();
+
+      res.json({
+        message:
+          'Email verified successfully',
+      });
+
+    } catch (error) {
+      console.error(
+        'VERIFY OTP ERROR:',
+        error
+      );
+
+      res.status(500).json({
+        message:
+          error.message ||
+          'OTP verification failed',
       });
     }
-
-    if (!user.otp_code || !user.otp_expires) {
-      return res.status(400).json({
-        message: 'No OTP pending',
-      });
-    }
-
-    if (Date.now() > user.otp_expires.getTime()) {
-      return res.status(400).json({
-        message: 'OTP expired',
-      });
-    }
-
-    if (user.otp_code !== otp_code) {
-      return res.status(400).json({
-        message: 'Invalid OTP',
-      });
-    }
-
-    user.is_verified = true;
-    user.otp_code = undefined;
-    user.otp_expires = undefined;
-
-    await user.save();
-
-    res.json({
-      message: 'Email verified successfully',
-    });
-
-  } catch (error) {
-    console.error('VERIFY OTP ERROR:', error);
-
-    res.status(500).json({
-      message: error.message || 'OTP verification failed',
-    });
   }
-});
+);
 
 
 /* =========================
    CHANGE PASSWORD
 ========================= */
 
-router.post('/change-password', protect, async (req, res) => {
-  try {
-    const {
-      current_password,
-      new_password,
-    } = req.body;
+router.post(
+  '/change-password',
+  protect,
+  async (req, res) => {
+    try {
+      const {
+        current_password,
+        new_password,
+      } = req.body;
 
-    if (!current_password || !new_password) {
-      return res.status(400).json({
-        message: 'Current and new password are required',
+      if (
+        !current_password ||
+        !new_password
+      ) {
+        return res.status(400).json({
+          message:
+            'Current and new password are required',
+        });
+      }
+
+      const user = await User.findById(
+        req.user._id
+      ).select('+password');
+
+      if (!user) {
+        return res.status(404).json({
+          message: 'User not found',
+        });
+      }
+
+      const isMatch =
+        await user.comparePassword(
+          current_password
+        );
+
+      if (!isMatch) {
+        return res.status(400).json({
+          message:
+            'Current password is incorrect',
+        });
+      }
+
+      user.password = new_password;
+
+      await user.save();
+
+      res.json({
+        message:
+          'Password updated successfully',
+      });
+
+    } catch (error) {
+      console.error(
+        'CHANGE PASSWORD ERROR:',
+        error
+      );
+
+      res.status(500).json({
+        message:
+          error.message ||
+          'Password update failed',
       });
     }
-
-    const user = await User.findById(req.user._id)
-      .select('+password');
-
-    if (!user) {
-      return res.status(404).json({
-        message: 'User not found',
-      });
-    }
-
-    const isMatch = await user.comparePassword(
-      current_password
-    );
-
-    if (!isMatch) {
-      return res.status(400).json({
-        message: 'Current password is incorrect',
-      });
-    }
-
-    user.password = new_password;
-
-    await user.save();
-
-    res.json({
-      message: 'Password updated successfully',
-    });
-
-  } catch (error) {
-    console.error('CHANGE PASSWORD ERROR:', error);
-
-    res.status(500).json({
-      message: error.message || 'Password update failed',
-    });
   }
-});
+);
 
 
 /* =========================
@@ -400,11 +545,14 @@ router.post(
   protect,
   async (req, res) => {
     try {
-      const { withdrawal_password } = req.body;
+      const {
+        withdrawal_password,
+      } = req.body;
 
       if (!withdrawal_password) {
         return res.status(400).json({
-          message: 'Withdrawal password is required',
+          message:
+            'Withdrawal password is required',
         });
       }
 
@@ -421,7 +569,8 @@ router.post(
       );
 
       res.json({
-        message: 'Withdrawal password set successfully',
+        message:
+          'Withdrawal password set successfully',
       });
 
     } catch (error) {
@@ -455,24 +604,28 @@ router.post(
         country_code,
       } = req.body;
 
-      const user = await User.findByIdAndUpdate(
-        req.user._id,
-        {
-          date_of_birth:
-            date_of_birth || req.user.date_of_birth,
+      const user =
+        await User.findByIdAndUpdate(
+          req.user._id,
+          {
+            date_of_birth:
+              date_of_birth ||
+              req.user.date_of_birth,
 
-          mobile:
-            mobile || req.user.mobile,
+            mobile:
+              mobile ||
+              req.user.mobile,
 
-          country_code:
-            country_code || req.user.country_code,
+            country_code:
+              country_code ||
+              req.user.country_code,
 
-          identity_status: 'pending',
-        },
-        {
-          new: true,
-        }
-      );
+            identity_status: 'pending',
+          },
+          {
+            new: true,
+          }
+        );
 
       if (!user) {
         return res.status(404).json({
@@ -481,7 +634,8 @@ router.post(
       }
 
       res.json({
-        message: 'Verification submitted successfully',
+        message:
+          'Verification submitted successfully',
       });
 
     } catch (error) {
