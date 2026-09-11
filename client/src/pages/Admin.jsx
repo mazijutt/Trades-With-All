@@ -1016,7 +1016,7 @@ function TradeDataTab() {
 function WalletsTab({ users = [] }) {
   const [wallets, setWallets] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState({ currency: 'USDT', address: '', label: '', network: 'TRC20' });
+  const [form, setForm] = useState({ currency: 'USDT_TRC20', address: '', label: '', network: 'TRC20' });
   const [adding, setAdding] = useState(false);
 
   const [inrRate, setInrRate] = useState(85);
@@ -1088,7 +1088,7 @@ function WalletsTab({ users = [] }) {
     setAdding(true);
     try {
       await api.post('/wallets', form);
-      setForm({ currency: 'USDT', address: '', label: '', network: 'TRC20' });
+      setForm({ currency: 'USDT_TRC20', address: '', label: '', network: 'TRC20' });
       fetchWallets();
     } catch (err) {
       console.error(err);
@@ -1111,7 +1111,7 @@ function WalletsTab({ users = [] }) {
     if (!value || value <= 0) return;
     setRateSaving(true);
     try {
-      await api.put('/settings', { inr_rate: value });
+      await api.put('/settings', { key: 'inr_rate', value });
     } catch (err) {
       console.error(err);
     } finally {
@@ -1430,11 +1430,11 @@ function WalletsTab({ users = [] }) {
               onChange={(e) => setForm({ ...form, currency: e.target.value })}
               className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
             >
-              <option value="USDT">USDT</option>
-              <option value="BTC">BTC</option>
-              <option value="ETH">ETH</option>
-              <option value="BNB">BNB</option>
-              <option value="SOL">SOL</option>
+              <option value="USDT_TRC20">USDT (TRC20)</option>
+              <option value="USDT_ERC20">USDT (ERC20)</option>
+              <option value="BTC">Bitcoin (BTC)</option>
+              <option value="ETH">Ethereum (ETH)</option>
+              <option value="USDC">USD Coin (USDC)</option>
             </select>
           </div>
           <div>
@@ -1492,7 +1492,7 @@ function WalletsTab({ users = [] }) {
       ) : (
         <div className="space-y-2">
           {wallets.map((w) => (
-            <div key={w.id} className="bg-white rounded-xl shadow-sm border border-sky-100 p-4 flex items-center justify-between">
+            <div key={w._id || w.id} className="bg-white rounded-xl shadow-sm border border-sky-100 p-4 flex items-center justify-between">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-10 h-10 rounded-xl bg-sky-50 flex items-center justify-center flex-shrink-0">
                   <Wallet className="w-5 h-5 text-sky-500" />
@@ -1511,7 +1511,7 @@ function WalletsTab({ users = [] }) {
                 </div>
               </div>
               <button
-                onClick={() => handleDelete(w.id)}
+                onClick={() => handleDelete(w._id || w.id)}
                 className="flex-shrink-0 p-2 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
               >
                 <Trash2 className="w-4 h-4" />
