@@ -4,6 +4,7 @@ import {
   LayoutDashboard,
   ArrowLeftRight,
   Wallet,
+  Landmark,
   User,
   ShieldCheck,
   Bell,
@@ -20,6 +21,7 @@ const NAV_ITEMS = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/dashboard/trade', label: 'Trade', icon: ArrowLeftRight },
   { to: '/dashboard/wallet', label: 'Wallet', icon: Wallet },
+  { to: '/dashboard/fixed-deposits', label: 'Fixed Deposits', icon: Landmark },
   { to: '/dashboard/profile', label: 'Profile', icon: User },
 ];
 

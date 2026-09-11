@@ -110,6 +110,7 @@ export default function Dashboard() {
   const [selectedCrypto, setSelectedCrypto] = useState('BTC');
   const [chartData, setChartData] = useState([]);
   const [chartLoading, setChartLoading] = useState(false);
+  const [fdPlans, setFdPlans] = useState([]);
 
   const firstName = user?.full_name?.split(' ')[0] || 'Trader';
   const initial = user?.full_name?.[0]?.toUpperCase() || 'U';
@@ -122,6 +123,7 @@ export default function Dashboard() {
   useEffect(() => {
     fetchPrices();
     fetchDashboardData();
+    fetchFDPlans();
     const priceInterval = setInterval(fetchPrices, 15000);
     return () => clearInterval(priceInterval);
   }, []);
@@ -177,6 +179,17 @@ export default function Dashboard() {
       if (historyRes.status === 'fulfilled') setTradeHistory(historyRes.value.data);
     } catch (err) {
       console.error('Failed to fetch dashboard data:', err);
+    }
+  }
+
+
+  async function fetchFDPlans() {
+    try {
+      const { data } = await api.get('/fixed-deposits/public');
+      setFdPlans(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('Failed to fetch FD plans:', err);
+      setFdPlans([]);
     }
   }
 
@@ -585,6 +598,30 @@ export default function Dashboard() {
             )}
           </div>
         </div>
+
+
+        {fdPlans.length > 0 && (
+          <div className="animate-fade-in" style={{ animationDelay: '0.28s' }}>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-5 rounded-full bg-sky-500" />
+                <h3 className="font-heading text-lg font-bold text-gray-800">Fixed Deposits</h3>
+              </div>
+              <a href="/dashboard/fixed-deposits" className="text-xs font-semibold text-sky-600 hover:text-sky-700">View all</a>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {fdPlans.slice(0, 3).map((plan) => (
+                <a href="/dashboard/fixed-deposits" key={plan._id || plan.id} className="bg-white rounded-xl shadow-sm border border-sky-100 p-5 hover:border-sky-300 hover:shadow-md transition-all group">
+                  <div className="flex items-start justify-between gap-3">
+                    <div><p className="text-xs text-gray-400 uppercase tracking-wider">{plan.short_name || 'FD'}</p><h4 className="font-heading text-base font-bold text-gray-800 mt-1 group-hover:text-sky-600">{plan.name}</h4></div>
+                    <span className="px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-600 text-xs font-bold">{Number(plan.interest_rate).toFixed(2)}%</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 mt-4 text-xs"><div><span className="text-gray-400 block">Tenure</span><b className="text-gray-700">{plan.tenure}</b></div><div><span className="text-gray-400 block">Minimum</span><b className="text-gray-700">₹{Number(plan.min_amount || 0).toLocaleString('en-IN')}</b></div></div>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="animate-fade-in" style={{ animationDelay: '0.3s' }}>
           <div className="flex items-center gap-2 mb-4">

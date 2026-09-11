@@ -46,6 +46,8 @@ import {
   Check,
   Gift,
   Headphones,
+  Landmark,
+  Pencil,
 } from 'lucide-react';
 
 const TABS = [
@@ -54,6 +56,7 @@ const TABS = [
   { id: 'txns', label: 'Txns', icon: FileText },
   { id: 'data', label: 'Data', icon: Database },
   { id: 'wallets', label: 'Wallets', icon: WalletCards },
+  { id: 'fd', label: 'FD Plans', icon: Landmark },
 ];
 
 function Spinner() {
@@ -1524,6 +1527,149 @@ function WalletsTab({ users = [] }) {
   );
 }
 
+
+function FDPlansTab() {
+  const emptyForm = {
+    name: '', short_name: '', interest_rate: '', tenure: '',
+    min_amount: 500, max_amount: 0, payout: 'At maturity',
+    description: '', is_active: true, sort_order: 0,
+  };
+  const [plans, setPlans] = useState([]);
+  const [form, setForm] = useState(emptyForm);
+  const [editingId, setEditingId] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState('');
+
+  async function loadPlans() {
+    setLoading(true);
+    try {
+      const { data } = await api.get('/fixed-deposits');
+      setPlans(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setMessage(err?.response?.data?.message || 'Failed to load FD plans');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { loadPlans(); }, []);
+
+  function updateField(key, value) {
+    setForm(prev => ({ ...prev, [key]: value }));
+  }
+
+  function editPlan(plan) {
+    setEditingId(plan._id || plan.id);
+    setForm({
+      name: plan.name || '', short_name: plan.short_name || '',
+      interest_rate: plan.interest_rate ?? '', tenure: plan.tenure || '',
+      min_amount: plan.min_amount ?? 0, max_amount: plan.max_amount ?? 0,
+      payout: plan.payout || 'At maturity', description: plan.description || '',
+      is_active: plan.is_active !== false, sort_order: plan.sort_order ?? 0,
+    });
+    setMessage('');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function resetForm() {
+    setEditingId(null);
+    setForm(emptyForm);
+    setMessage('');
+  }
+
+  async function savePlan(e) {
+    e.preventDefault();
+    if (!form.name.trim() || !form.tenure.trim() || form.interest_rate === '') {
+      setMessage('Name, interest rate and tenure are required.');
+      return;
+    }
+    setSaving(true);
+    setMessage('');
+    try {
+      if (editingId) {
+        await api.put(`/fixed-deposits/${editingId}`, form);
+        setMessage('FD plan updated successfully.');
+      } else {
+        await api.post('/fixed-deposits', form);
+        setMessage('FD plan created successfully.');
+      }
+      resetForm();
+      await loadPlans();
+    } catch (err) {
+      setMessage(err?.response?.data?.message || 'Failed to save FD plan');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function togglePlan(plan) {
+    try {
+      await api.put(`/fixed-deposits/${plan._id || plan.id}`, { is_active: !plan.is_active });
+      loadPlans();
+    } catch (err) {
+      setMessage(err?.response?.data?.message || 'Failed to update plan');
+    }
+  }
+
+  async function deletePlan(plan) {
+    if (!window.confirm(`Delete ${plan.name}?`)) return;
+    try {
+      await api.delete(`/fixed-deposits/${plan._id || plan.id}`);
+      if (editingId === (plan._id || plan.id)) resetForm();
+      loadPlans();
+    } catch (err) {
+      setMessage(err?.response?.data?.message || 'Failed to delete plan');
+    }
+  }
+
+  return (
+    <div className="space-y-5">
+      <div className="bg-white rounded-xl shadow-sm border border-sky-100 p-5">
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <div>
+            <h3 className="font-heading text-lg font-bold text-gray-900">{editingId ? 'Edit FD Plan' : 'Add FD Plan'}</h3>
+            <p className="text-gray-400 text-xs mt-1">Control the fixed-deposit products shown to users.</p>
+          </div>
+          {editingId && <button onClick={resetForm} type="button" className="px-3 py-2 rounded-lg bg-gray-100 text-gray-600 text-xs font-semibold">Cancel edit</button>}
+        </div>
+        <form onSubmit={savePlan} className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+          <div className="xl:col-span-2"><label className="text-xs text-gray-400">Plan name</label><input value={form.name} onChange={e => updateField('name', e.target.value)} placeholder="Fixed Deposit" className="w-full mt-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500" /></div>
+          <div><label className="text-xs text-gray-400">Short name</label><input value={form.short_name} onChange={e => updateField('short_name', e.target.value)} placeholder="FD" className="w-full mt-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500" /></div>
+          <div><label className="text-xs text-gray-400">Interest rate %</label><input type="number" step="0.01" min="0" value={form.interest_rate} onChange={e => updateField('interest_rate', e.target.value)} placeholder="7.50" className="w-full mt-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500" /></div>
+          <div><label className="text-xs text-gray-400">Tenure</label><input value={form.tenure} onChange={e => updateField('tenure', e.target.value)} placeholder="1 Year" className="w-full mt-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500" /></div>
+          <div><label className="text-xs text-gray-400">Minimum amount</label><input type="number" min="0" value={form.min_amount} onChange={e => updateField('min_amount', e.target.value)} className="w-full mt-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500" /></div>
+          <div><label className="text-xs text-gray-400">Maximum amount (0 = no limit)</label><input type="number" min="0" value={form.max_amount} onChange={e => updateField('max_amount', e.target.value)} className="w-full mt-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500" /></div>
+          <div><label className="text-xs text-gray-400">Payout</label><input value={form.payout} onChange={e => updateField('payout', e.target.value)} placeholder="At maturity" className="w-full mt-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500" /></div>
+          <div><label className="text-xs text-gray-400">Sort order</label><input type="number" value={form.sort_order} onChange={e => updateField('sort_order', e.target.value)} className="w-full mt-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500" /></div>
+          <div className="md:col-span-2 xl:col-span-3"><label className="text-xs text-gray-400">Description</label><textarea rows="2" value={form.description} onChange={e => updateField('description', e.target.value)} placeholder="Plan description" className="admin-input resize-none" /></div>
+          <label className="flex items-center gap-2 mt-5 text-sm text-gray-600 cursor-pointer"><input type="checkbox" checked={form.is_active} onChange={e => updateField('is_active', e.target.checked)} className="w-4 h-4 accent-sky-500" /> Show to users</label>
+          <div className="md:col-span-2 xl:col-span-4 flex items-center gap-3">
+            <button disabled={saving} className="px-5 py-2.5 rounded-lg bg-sky-500 hover:bg-sky-600 text-white text-sm font-semibold disabled:opacity-50">{saving ? 'Saving...' : editingId ? 'Update FD Plan' : 'Add FD Plan'}</button>
+            {message && <span className="text-xs text-gray-500">{message}</span>}
+          </div>
+        </form>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-sm border border-sky-100 p-5">
+        <div className="flex items-center justify-between mb-4"><div><h3 className="font-heading text-lg font-bold text-gray-900">FD Plans</h3><p className="text-gray-400 text-xs mt-1">{plans.length} plan(s) configured</p></div><button onClick={loadPlans} className="p-2 rounded-lg hover:bg-gray-100 text-gray-400"><RefreshCw className="w-4 h-4" /></button></div>
+        {loading ? <div className="py-12 text-center text-gray-400 text-sm">Loading...</div> : plans.length === 0 ? <div className="py-12 text-center text-gray-400 text-sm">No FD plans yet.</div> : (
+          <div className="space-y-3">
+            {plans.map(plan => (
+              <div key={plan._id || plan.id} className="border border-gray-100 rounded-xl p-4 flex flex-col lg:flex-row lg:items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-sky-50 flex items-center justify-center flex-shrink-0"><Landmark className="w-5 h-5 text-sky-500" /></div>
+                <div className="flex-1 min-w-0"><div className="flex items-center gap-2 flex-wrap"><h4 className="font-semibold text-gray-900">{plan.name}</h4><span className="text-xs text-sky-600 font-semibold">{plan.short_name}</span><span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${plan.is_active ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-gray-50 text-gray-400 border-gray-200'}`}>{plan.is_active ? 'Visible' : 'Hidden'}</span></div><p className="text-xs text-gray-400 mt-1">{plan.description || 'No description'}</p></div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs min-w-0 lg:min-w-[390px]"><div><span className="text-gray-400 block">Rate</span><b className="text-sky-600">{Number(plan.interest_rate).toFixed(2)}%</b></div><div><span className="text-gray-400 block">Tenure</span><b className="text-gray-700">{plan.tenure}</b></div><div><span className="text-gray-400 block">Minimum</span><b className="text-gray-700">₹{Number(plan.min_amount || 0).toLocaleString('en-IN')}</b></div><div><span className="text-gray-400 block">Payout</span><b className="text-gray-700">{plan.payout || 'Maturity'}</b></div></div>
+                <div className="flex items-center gap-1"><button onClick={() => togglePlan(plan)} className="p-2 rounded-lg hover:bg-gray-100 text-gray-500" title={plan.is_active ? 'Hide' : 'Show'}>{plan.is_active ? <ToggleRight className="w-5 h-5 text-emerald-500" /> : <ToggleLeft className="w-5 h-5" />}</button><button onClick={() => editPlan(plan)} className="p-2 rounded-lg hover:bg-sky-50 text-gray-500 hover:text-sky-600"><Pencil className="w-4 h-4" /></button><button onClick={() => deletePlan(plan)} className="p-2 rounded-lg hover:bg-red-50 text-gray-500 hover:text-red-600"><Trash2 className="w-4 h-4" /></button></div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function Admin() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -1657,6 +1803,7 @@ export default function Admin() {
               {activeTab === 'txns' && <TransactionsTab />}
               {activeTab === 'data' && <TradeDataTab />}
               {activeTab === 'wallets' && <WalletsTab users={users} />}
+              {activeTab === 'fd' && <FDPlansTab />}
             </div>
           </>
         )}

@@ -11,6 +11,7 @@ import Wallet from './pages/Wallet';
 import Profile from './pages/Profile';
 import Admin from './pages/Admin';
 import Notifications from './pages/Notifications';
+import FixedDeposits from './pages/FixedDeposits';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -63,6 +64,7 @@ function App() {
           <Route path="/dashboard" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
             <Route index element={<Dashboard />} />
             <Route path="trade" element={<Trade />} />
+            <Route path="fixed-deposits" element={<FixedDeposits />} />
             <Route path="wallet" element={<Wallet />} />
             <Route path="profile" element={<Profile />} />
             <Route path="admin" element={<Admin />} />
