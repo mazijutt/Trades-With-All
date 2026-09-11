@@ -46,7 +46,6 @@ import {
   Check,
   Gift,
   Headphones,
-  Landmark,
   Pencil,
 } from 'lucide-react';
 
