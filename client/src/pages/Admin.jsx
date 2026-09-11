@@ -632,10 +632,8 @@ function VerifyTab({ onRefresh }) {
         </div>
       ) : (
         <div className="space-y-3">
-          {filtered.map((u) => {
-            const userId = u._id || u.id;
-            return (
-            <div key={userId} className="bg-white rounded-xl shadow-sm border border-sky-100 p-4">
+          {filtered.map((u) => (
+            <div key={u.id} className="bg-white rounded-xl shadow-sm border border-sky-100 p-4">
               <div className="flex items-start justify-between">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
@@ -650,14 +648,14 @@ function VerifyTab({ onRefresh }) {
                 </div>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => handleVerify(userId, 'verified')}
+                    onClick={() => handleVerify(u.id, 'verified')}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors"
                   >
                     <CheckCircle className="w-3.5 h-3.5" />
                     Verify
                   </button>
                   <button
-                    onClick={() => handleVerify(userId, 'unverified')}
+                    onClick={() => handleVerify(u.id, 'unverified')}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
                   >
                     <XCircle className="w-3.5 h-3.5" />
@@ -666,8 +664,7 @@ function VerifyTab({ onRefresh }) {
                 </div>
               </div>
             </div>
-            );
-          })}
+          ))}
         </div>
       )}
     </div>
@@ -687,7 +684,7 @@ function TransactionsTab() {
   async function fetchTransactions() {
     setLoading(true);
     try {
-      const { data } = await api.get('/admin/transactions');
+      const { data } = await api.get('/transactions/all');
       setTransactions(Array.isArray(data) ? data : data.transactions || []);
     } catch (err) {
       console.error(err);
@@ -762,8 +759,8 @@ function TransactionsTab() {
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {filtered.map((t) => (
-                  <tr key={t.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="p-3 text-gray-800 text-xs">{t.user?.full_name || t.user_name || 'Unknown'}</td>
+                  <tr key={t._id || t.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="p-3 text-gray-800 text-xs">{t.user?.full_name || t.user_name || t.user_email || 'Unknown'}</td>
                     <td className="p-3">
                       <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${t.type === 'deposit' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
                         {t.type}
@@ -793,18 +790,18 @@ function TransactionsTab() {
                         {t.status}
                       </span>
                     </td>
-                    <td className="p-3 text-gray-400 text-xs">{t.created_at ? formatDate(t.created_at) : '-'}</td>
+                    <td className="p-3 text-gray-400 text-xs">{t.createdAt ? formatDate(t.createdAt) : (t.created_at ? formatDate(t.created_at) : '-')}</td>
                     <td className="p-3 text-right">
                       {t.status === 'pending' && (
                         <div className="flex gap-1.5 justify-end">
                           <button
-                            onClick={() => handleApprove(t.id)}
+                            onClick={() => handleApprove(t._id || t.id)}
                             className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors"
                           >
                             Approve
                           </button>
                           <button
-                            onClick={() => handleReject(t.id)}
+                            onClick={() => handleReject(t._id || t.id)}
                             className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
                           >
                             Reject
