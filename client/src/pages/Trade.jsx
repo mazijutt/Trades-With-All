@@ -110,6 +110,7 @@ export default function Trade() {
   const candleSeriesRef = useRef(null);
   const countdownRef = useRef({});
   const dropdownRef = useRef(null);
+  const chartResizeHandlerRef = useRef(null);
 
   const currentPrices = prices[selectedCrypto] || {};
   const currentPrice = currentPrices.price ?? currentPrices.last ?? 0;
@@ -158,7 +159,7 @@ export default function Trade() {
       const coinId = CRYPTO_CONFIG[selectedCrypto].coinId;
       const { data } = await api.get(`/prices/ohlc/${coinId}?days=1`);
       if (Array.isArray(data) && data.length > 0) {
-        renderCandlestickChart(data);
+        await renderCandlestickChart(data);
       }
     } catch (err) {
       console.error('Failed to fetch OHLC data:', err);
@@ -167,7 +168,7 @@ export default function Trade() {
     }
   }, [selectedCrypto]);
 
-  function renderCandlestickChart(ohlcData) {
+  async function renderCandlestickChart(ohlcData) {
     if (!chartContainerRef.current) return;
 
     if (!chartRef.current) {
@@ -192,26 +193,42 @@ export default function Trade() {
           timeVisible: true,
           secondsVisible: false,
         },
-        width: chartContainerRef.current.clientWidth,
+        width: Math.max(chartContainerRef.current.clientWidth, 300),
         height: 320,
-        autoSize: true,
       });
 
-      candleSeriesRef.current = chart.addCandlestickSeries({
+      // lightweight-charts v4 uses addCandlestickSeries().
+      // v5 uses addSeries(CandlestickSeries, options). Supporting both
+      // prevents the chart from breaking after a dependency update.
+      const candleOptions = {
         upColor: '#10b981',
         downColor: '#ef4444',
         borderVisible: false,
         wickUpColor: '#10b981',
         wickDownColor: '#ef4444',
-      });
+      };
+
+      if (typeof chart.addCandlestickSeries === 'function') {
+        candleSeriesRef.current = chart.addCandlestickSeries(candleOptions);
+      } else {
+        // v5 exposes series constructors from the package.
+        // This branch is only used when addCandlestickSeries is unavailable.
+        const { CandlestickSeries } = await import('lightweight-charts');
+        candleSeriesRef.current = chart.addSeries(CandlestickSeries, candleOptions);
+      }
 
       chartRef.current = chart;
 
-      window.addEventListener('resize', () => {
+      const handleChartResize = () => {
         if (chartRef.current && chartContainerRef.current) {
-          chartRef.current.applyOptions({ width: chartContainerRef.current.clientWidth });
+          chartRef.current.applyOptions({
+            width: Math.max(chartContainerRef.current.clientWidth, 300),
+          });
         }
-      });
+      };
+
+      window.addEventListener('resize', handleChartResize);
+      chartResizeHandlerRef.current = handleChartResize;
     }
 
     const candles = ohlcData.map(p => ({
@@ -232,9 +249,14 @@ export default function Trade() {
     return () => {
       clearInterval(priceInterval);
       Object.values(countdownRef.current).forEach(clearInterval);
+      if (chartResizeHandlerRef.current) {
+        window.removeEventListener('resize', chartResizeHandlerRef.current);
+        chartResizeHandlerRef.current = null;
+      }
       if (chartRef.current) {
         chartRef.current.remove();
         chartRef.current = null;
+        candleSeriesRef.current = null;
       }
     };
   }, [fetchPrices, fetchTrades]);
@@ -469,18 +491,19 @@ export default function Trade() {
                   <RefreshCw className="w-4 h-4 text-gray-400" />
                 </button>
               </div>
-              {chartLoading && !chartRef.current ? (
-                <div className="flex items-center justify-center h-[320px]">
-                  <Loader2 className="w-6 h-6 text-sky-500 animate-spin" />
-                </div>
-              ) : (
-                <div ref={chartContainerRef} className="w-full h-[320px]" />
-              )}
-              {!chartLoading && chartContainerRef.current && !chartRef.current && (
-                <div className="flex items-center justify-center h-[320px] text-gray-400 text-sm">
-                  <AlertTriangle className="w-5 h-5 mr-2" /> No chart data available
-                </div>
-              )}
+              <div className="relative w-full h-[320px]">
+                <div ref={chartContainerRef} className="w-full h-full" />
+                {chartLoading && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-white/70 rounded-lg pointer-events-none">
+                    <Loader2 className="w-6 h-6 text-sky-500 animate-spin" />
+                  </div>
+                )}
+                {!chartLoading && !chartRef.current && (
+                  <div className="absolute inset-0 flex items-center justify-center text-gray-400 text-sm bg-white rounded-lg">
+                    <AlertTriangle className="w-5 h-5 mr-2" /> No chart data available
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* ACTIVE TRADES */}
