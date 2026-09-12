@@ -204,11 +204,46 @@ router.post('/:id/credit-score', protect, adminOnly, async (req, res) => {
 router.post('/:id/verify', protect, adminOnly, async (req, res) => {
   try {
     const { status } = req.body;
-    const user = await User.findByIdAndUpdate(req.params.id, { identity_status: status }, { new: true });
-    if (!user) return res.status(404).json({ message: 'User not found' });
-    res.json(user);
+
+    const allowedStatuses = ['pending', 'verified', 'rejected'];
+
+    if (!allowedStatuses.includes(status)) {
+      return res.status(400).json({
+        message: `Invalid verification status: ${status}`,
+      });
+    }
+
+    const user = await User.findById(req.params.id);
+
+    if (!user) {
+      return res.status(404).json({
+        message: 'User not found',
+      });
+    }
+
+    user.identity_status = status;
+
+    // Agar aapke User model me is_verified field hai,
+    // to verification ke sath usko bhi update karein.
+    if (status === 'verified') {
+      user.is_verified = true;
+    } else if (status === 'rejected') {
+      user.is_verified = false;
+    }
+
+    await user.save();
+
+    return res.json({
+      message: `User ${status} successfully`,
+      user,
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('VERIFY USER ERROR:', error);
+
+    return res.status(500).json({
+      message: error.message || 'Failed to update verification status',
+      error: error.name || 'UnknownError',
+    });
   }
 });
 
