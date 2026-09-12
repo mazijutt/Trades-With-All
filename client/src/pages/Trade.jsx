@@ -110,7 +110,6 @@ export default function Trade() {
   const candleSeriesRef = useRef(null);
   const countdownRef = useRef({});
   const dropdownRef = useRef(null);
-  const chartResizeHandlerRef = useRef(null);
 
   const currentPrices = prices[selectedCrypto] || {};
   const currentPrice = currentPrices.price ?? currentPrices.last ?? 0;
@@ -159,9 +158,7 @@ export default function Trade() {
       const coinId = CRYPTO_CONFIG[selectedCrypto].coinId;
       const { data } = await api.get(`/prices/ohlc/${coinId}?days=1`);
       if (Array.isArray(data) && data.length > 0) {
-        await renderCandlestickChart(data);
-      } else {
-        console.warn('OHLC endpoint returned no candle data:', data);
+        renderCandlestickChart(data);
       }
     } catch (err) {
       console.error('Failed to fetch OHLC data:', err);
@@ -170,7 +167,7 @@ export default function Trade() {
     }
   }, [selectedCrypto]);
 
-  async function renderCandlestickChart(ohlcData) {
+  function renderCandlestickChart(ohlcData) {
     if (!chartContainerRef.current) return;
 
     if (!chartRef.current) {
@@ -195,123 +192,37 @@ export default function Trade() {
           timeVisible: true,
           secondsVisible: false,
         },
-        width: Math.max(chartContainerRef.current.clientWidth, 300),
+        width: chartContainerRef.current.clientWidth,
         height: 320,
+        autoSize: true,
       });
 
-      // lightweight-charts v4 uses addCandlestickSeries().
-      // v5 uses addSeries(CandlestickSeries, options). Supporting both
-      // prevents the chart from breaking after a dependency update.
-      const candleOptions = {
+      candleSeriesRef.current = chart.addCandlestickSeries({
         upColor: '#10b981',
         downColor: '#ef4444',
         borderVisible: false,
         wickUpColor: '#10b981',
         wickDownColor: '#ef4444',
-      };
-
-      if (typeof chart.addCandlestickSeries === 'function') {
-        candleSeriesRef.current = chart.addCandlestickSeries(candleOptions);
-      } else {
-        // v5 exposes series constructors from the package.
-        // This branch is only used when addCandlestickSeries is unavailable.
-        const { CandlestickSeries } = await import('lightweight-charts');
-        candleSeriesRef.current = chart.addSeries(CandlestickSeries, candleOptions);
-      }
+      });
 
       chartRef.current = chart;
 
-      const handleChartResize = () => {
+      window.addEventListener('resize', () => {
         if (chartRef.current && chartContainerRef.current) {
-          chartRef.current.applyOptions({
-            width: Math.max(chartContainerRef.current.clientWidth, 300),
-          });
+          chartRef.current.applyOptions({ width: chartContainerRef.current.clientWidth });
         }
-      };
-
-      window.addEventListener('resize', handleChartResize);
-      chartResizeHandlerRef.current = handleChartResize;
+      });
     }
 
-    // Normalize the API response before passing it to lightweight-charts.
-    // The chart requires numeric UNIX seconds, strictly ascending and unique.
-    const toUnixSeconds = (value) => {
-      if (typeof value === 'number' && Number.isFinite(value)) {
-        return Math.floor(value > 1e12 ? value / 1000 : value);
-      }
-
-      if (typeof value === 'string') {
-        const numeric = Number(value);
-        if (Number.isFinite(numeric)) {
-          return Math.floor(numeric > 1e12 ? numeric / 1000 : numeric);
-        }
-
-        const parsed = Date.parse(value);
-        if (Number.isFinite(parsed)) {
-          return Math.floor(parsed / 1000);
-        }
-      }
-
-      return NaN;
-    };
-
-    const normalized = ohlcData
-      .map((point) => {
-        // Support both CoinGecko arrays and object-shaped OHLC responses.
-        const rawTime = Array.isArray(point)
-          ? point[0]
-          : (point?.time ?? point?.timestamp ?? point?.date);
-
-        const open = Number(Array.isArray(point) ? point[1] : point?.open);
-        const high = Number(Array.isArray(point) ? point[2] : point?.high);
-        const low = Number(Array.isArray(point) ? point[3] : point?.low);
-        const close = Number(Array.isArray(point) ? point[4] : point?.close);
-        const time = toUnixSeconds(rawTime);
-
-        if (
-          !Number.isFinite(time) ||
-          !Number.isFinite(open) ||
-          !Number.isFinite(high) ||
-          !Number.isFinite(low) ||
-          !Number.isFinite(close) ||
-          open <= 0 ||
-          high <= 0 ||
-          low <= 0 ||
-          close <= 0
-        ) {
-          return null;
-        }
-
-        return {
-          time,
-          open,
-          high: Math.max(high, open, close, low),
-          low: Math.min(low, open, close, high),
-          close,
-        };
-      })
-      .filter(Boolean)
-      .sort((a, b) => a.time - b.time);
-
-    // Remove duplicate timestamps. lightweight-charts requires unique,
-    // strictly ascending time values.
-    const candles = [];
-    let lastTime = null;
-
-    for (const candle of normalized) {
-      if (candle.time !== lastTime) {
-        candles.push(candle);
-        lastTime = candle.time;
-      }
-    }
-
-    if (!candles.length) {
-      console.error('No valid OHLC candles returned by /prices/ohlc:', ohlcData);
-      return;
-    }
+    const candles = ohlcData.map(p => ({
+      time: Math.floor(p[0] / 1000),
+      open: p[1],
+      high: p[2],
+      low: p[3],
+      close: p[4],
+    }));
 
     candleSeriesRef.current.setData(candles);
-    chartRef.current.timeScale().fitContent();
   }
 
   useEffect(() => {
@@ -321,14 +232,9 @@ export default function Trade() {
     return () => {
       clearInterval(priceInterval);
       Object.values(countdownRef.current).forEach(clearInterval);
-      if (chartResizeHandlerRef.current) {
-        window.removeEventListener('resize', chartResizeHandlerRef.current);
-        chartResizeHandlerRef.current = null;
-      }
       if (chartRef.current) {
         chartRef.current.remove();
         chartRef.current = null;
-        candleSeriesRef.current = null;
       }
     };
   }, [fetchPrices, fetchTrades]);
@@ -563,19 +469,18 @@ export default function Trade() {
                   <RefreshCw className="w-4 h-4 text-gray-400" />
                 </button>
               </div>
-              <div className="relative w-full h-[320px]">
-                <div ref={chartContainerRef} className="w-full h-full" />
-                {chartLoading && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-white/70 rounded-lg pointer-events-none">
-                    <Loader2 className="w-6 h-6 text-sky-500 animate-spin" />
-                  </div>
-                )}
-                {!chartLoading && !chartRef.current && (
-                  <div className="absolute inset-0 flex items-center justify-center text-gray-400 text-sm bg-white rounded-lg">
-                    <AlertTriangle className="w-5 h-5 mr-2" /> No chart data available
-                  </div>
-                )}
-              </div>
+              {chartLoading && !chartRef.current ? (
+                <div className="flex items-center justify-center h-[320px]">
+                  <Loader2 className="w-6 h-6 text-sky-500 animate-spin" />
+                </div>
+              ) : (
+                <div ref={chartContainerRef} className="w-full h-[320px]" />
+              )}
+              {!chartLoading && chartContainerRef.current && !chartRef.current && (
+                <div className="flex items-center justify-center h-[320px] text-gray-400 text-sm">
+                  <AlertTriangle className="w-5 h-5 mr-2" /> No chart data available
+                </div>
+              )}
             </div>
 
             {/* ACTIVE TRADES */}
