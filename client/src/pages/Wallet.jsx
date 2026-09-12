@@ -186,14 +186,7 @@ export default function WalletPage() {
   }
 
   const balance = user?.balance || 0
-  const currentAddress = walletAddresses.find(w => {
-    if (w.currency === selectedCurrency) return true
-    if (w.currency === 'USDT' && selectedCurrency.startsWith('USDT_')) {
-      const expectedNetwork = selectedCurrency.endsWith('_TRC20') ? 'TRC20' : selectedCurrency.endsWith('_ERC20') ? 'ERC20' : ''
-      return !expectedNetwork || w.network === expectedNetwork
-    }
-    return false
-  })
+  const currentAddress = walletAddresses.find(w => w.currency === selectedCurrency)
   const maxWithdraw = Math.min(balance, parseFloat(withdrawAmount) || 0) > balance ? balance : parseFloat(withdrawAmount) || 0
   const maxInr = Math.round((balance * inrRate) * 100) / 100
   const withdrawInr = parseFloat(withdrawAmount) || 0

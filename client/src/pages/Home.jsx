@@ -61,7 +61,6 @@ export default function Home() {
   const [pricesOk, setPricesOk] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [supportTelegram, setSupportTelegram] = useState('GeminieSupportBot');
-  const [fdPlans, setFdPlans] = useState([]);
 
   useEffect(() => {
     let alive = true;
@@ -85,7 +84,6 @@ export default function Home() {
       }
     };
     fetchPrices();
-    api.get('/fixed-deposits/public').then(({ data }) => setFdPlans(Array.isArray(data) ? data : [])).catch(() => setFdPlans([]));
     const timer = setInterval(fetchPrices, 20000);
     return () => { alive = false; clearInterval(timer); };
   }, []);
@@ -278,32 +276,6 @@ export default function Home() {
           </p>
         )}
       </section>
-
-
-      {fdPlans.length > 0 && (
-        <section id="fixed-deposits" className="py-16 md:py-20">
-          <div className="max-w-7xl mx-auto px-4 md:px-6">
-            <div className="flex items-end justify-between gap-4 mb-8">
-              <div>
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-50 border border-sky-100 text-sky-600 text-xs font-semibold mb-3"><Landmark className="w-4 h-4" /> Fixed Deposits</div>
-                <h2 className="font-heading text-2xl md:text-3xl font-bold text-gray-900">Savings plans for every goal</h2>
-                <p className="text-gray-400 text-sm mt-2">Explore the fixed-income plans currently enabled by the administrator.</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
-              {fdPlans.map(plan => (
-                <Link to="/register" key={plan._id || plan.id} className="bg-white rounded-xl border border-sky-100 shadow-sm p-5 hover:border-sky-300 hover:shadow-md transition-all group">
-                  <div className="w-10 h-10 rounded-xl bg-sky-50 flex items-center justify-center mb-4"><Landmark className="w-5 h-5 text-sky-500" /></div>
-                  <p className="text-xs font-bold text-sky-600">{plan.short_name || 'FD'}</p>
-                  <h3 className="font-heading text-sm font-bold text-gray-800 mt-1 min-h-10 group-hover:text-sky-600">{plan.name}</h3>
-                  <div className="mt-4"><span className="text-2xl font-bold text-gray-900">{Number(plan.interest_rate).toFixed(2)}%</span><span className="text-xs text-gray-400 ml-1">p.a.</span></div>
-                  <p className="text-xs text-gray-400 mt-2">{plan.tenure} · Min ₹{Number(plan.min_amount || 0).toLocaleString('en-IN')}</p>
-                </Link>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
 
       <section id="features" className="bg-gray-50 border-y border-sky-100">
         <div className="max-w-7xl mx-auto px-4 md:px-6 py-16 md:py-20">

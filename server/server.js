@@ -8,7 +8,6 @@ import connectDB from './config.js';
 import Trade from './models/Trade.js';
 import User from './models/User.js';
 import Notification from './models/Notification.js';
-import FixedDeposit from './models/FixedDeposit.js';
 
 dotenv.config();
 
@@ -191,46 +190,6 @@ const resolveExpiredTrades = async () => {
   }
 };
 
-
-
-const ensureDefaultFixedDeposits = async () => {
-  const defaults = [
-    {
-      name: 'Fixed Deposit', short_name: 'FD', interest_rate: 7.5, tenure: '1 Year',
-      min_amount: 500, max_amount: 0, payout: 'At maturity',
-      description: 'A simple fixed-income savings plan with a fixed interest rate.', sort_order: 1,
-    },
-    {
-      name: 'PPF (Public Provident Fund)', short_name: 'PPF', interest_rate: 7.1, tenure: '15 Years',
-      min_amount: 500, max_amount: 150000, payout: 'At maturity',
-      description: 'Long-term savings plan with a fixed tenure and annual contribution limit.', sort_order: 2,
-    },
-    {
-      name: 'Sukanya Samriddhi Yojana (SSY)', short_name: 'SSY', interest_rate: 8.2, tenure: '21 Years',
-      min_amount: 250, max_amount: 150000, payout: 'At maturity',
-      description: 'Long-term savings product designed for eligible girl-child accounts.', sort_order: 3,
-    },
-    {
-      name: 'Senior Citizen Savings Scheme', short_name: 'SCSS', interest_rate: 8.2, tenure: '5 Years',
-      min_amount: 1000, max_amount: 3000000, payout: 'Quarterly',
-      description: 'Savings plan with a five-year tenure and periodic interest payout.', sort_order: 4,
-    },
-    {
-      name: 'NSC (National Savings Certificate)', short_name: 'NSC', interest_rate: 7.7, tenure: '5 Years',
-      min_amount: 1000, max_amount: 0, payout: 'At maturity',
-      description: 'Fixed-term national savings certificate with a five-year tenure.', sort_order: 5,
-    },
-  ];
-
-  for (const plan of defaults) {
-    await FixedDeposit.findOneAndUpdate(
-      { name: plan.name },
-      { $setOnInsert: { ...plan, is_active: true } },
-      { upsert: true, new: true }
-    );
-  }
-};
-
 /* =========================================================
    START SERVER
 ========================================================= */
@@ -242,9 +201,6 @@ const startServer = async () => {
     await connectDB();
 
     console.log('MongoDB connected successfully');
-
-    await ensureDefaultFixedDeposits();
-    console.log('Fixed deposit plans ready');
 
     /* =====================================================
        API ROUTES
@@ -294,10 +250,6 @@ const startServer = async () => {
     app.use('/api/prices', priceRoutes);
     app.use('/api/referrals', referralRoutes);
     app.use('/api/admin', adminRoutes);
-
-    const fixedDepositRoutes =
-      (await import('./routes/fixedDeposits.js')).default;
-    app.use('/api/fixed-deposits', fixedDepositRoutes);
 
     /* =====================================================
        HEALTH CHECK

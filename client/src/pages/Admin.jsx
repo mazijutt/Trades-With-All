@@ -46,19 +46,7 @@ import {
   Check,
   Gift,
   Headphones,
-  Pencil,
-  RefreshCw,
 } from 'lucide-react';
-
-function asArray(value, keys = []) {
-  if (Array.isArray(value)) return value;
-  if (value && typeof value === 'object') {
-    for (const key of keys) {
-      if (Array.isArray(value[key])) return value[key];
-    }
-  }
-  return [];
-}
 
 const TABS = [
   { id: 'users', label: 'Users', icon: Users },
@@ -66,7 +54,6 @@ const TABS = [
   { id: 'txns', label: 'Txns', icon: FileText },
   { id: 'data', label: 'Data', icon: Database },
   { id: 'wallets', label: 'Wallets', icon: WalletCards },
-  { id: 'fd', label: 'FD Plans', icon: Landmark },
 ];
 
 function Spinner() {
@@ -596,7 +583,7 @@ function VerifyTab({ onRefresh }) {
     setLoading(true);
     try {
       const { data } = await api.get('/admin/users');
-      setUsers(asArray(data, ['users', 'data']));
+      setUsers(Array.isArray(data) ? data : data.users || []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -645,8 +632,11 @@ function VerifyTab({ onRefresh }) {
         </div>
       ) : (
         <div className="space-y-3">
-          {filtered.map((u) => (
-            <div key={u._id || u.id} className="bg-white rounded-xl shadow-sm border border-sky-100 p-4">
+          {filtered.map((u) => {
+            const userId = u._id || u.id;
+
+            return (
+            <div key={userId} className="bg-white rounded-xl shadow-sm border border-sky-100 p-4">
               <div className="flex items-start justify-between">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
@@ -661,14 +651,14 @@ function VerifyTab({ onRefresh }) {
                 </div>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => handleVerify(u._id || u.id, 'verified')}
+                    onClick={() => handleVerify(userId, 'verified')}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors"
                   >
                     <CheckCircle className="w-3.5 h-3.5" />
                     Verify
                   </button>
                   <button
-                    onClick={() => handleVerify(u._id || u.id, 'unverified')}
+                    onClick={() => handleVerify(userId, 'unverified')}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
                   >
                     <XCircle className="w-3.5 h-3.5" />
@@ -677,7 +667,8 @@ function VerifyTab({ onRefresh }) {
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
@@ -697,8 +688,8 @@ function TransactionsTab() {
   async function fetchTransactions() {
     setLoading(true);
     try {
-      const { data } = await api.get('/transactions/all');
-      setTransactions(asArray(data, ['transactions', 'data']));
+      const { data } = await api.get('/admin/transactions');
+      setTransactions(Array.isArray(data) ? data : data.transactions || []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -772,8 +763,8 @@ function TransactionsTab() {
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {filtered.map((t) => (
-                  <tr key={t._id || t.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="p-3 text-gray-800 text-xs">{t.user?.full_name || t.user_name || t.user_email || 'Unknown'}</td>
+                  <tr key={t.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="p-3 text-gray-800 text-xs">{t.user?.full_name || t.user_name || 'Unknown'}</td>
                     <td className="p-3">
                       <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${t.type === 'deposit' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
                         {t.type}
@@ -803,18 +794,18 @@ function TransactionsTab() {
                         {t.status}
                       </span>
                     </td>
-                    <td className="p-3 text-gray-400 text-xs">{t.createdAt ? formatDate(t.createdAt) : (t.created_at ? formatDate(t.created_at) : '-')}</td>
+                    <td className="p-3 text-gray-400 text-xs">{t.created_at ? formatDate(t.created_at) : '-'}</td>
                     <td className="p-3 text-right">
                       {t.status === 'pending' && (
                         <div className="flex gap-1.5 justify-end">
                           <button
-                            onClick={() => handleApprove(t._id || t.id)}
+                            onClick={() => handleApprove(t.id)}
                             className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors"
                           >
                             Approve
                           </button>
                           <button
-                            onClick={() => handleReject(t._id || t.id)}
+                            onClick={() => handleReject(t.id)}
                             className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
                           >
                             Reject
@@ -844,7 +835,7 @@ function TradeDataTab() {
     setLoading(true);
     try {
       const { data } = await api.get('/admin/trades');
-      setTrades(asArray(data, ['trades', 'data']));
+      setTrades(Array.isArray(data) ? data : data.trades || []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -873,8 +864,8 @@ function TradeDataTab() {
     lost: trades.filter((t) => t.status === 'lost').length,
   };
 
-  const totalVolume = trades.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
-  const totalPL = trades.reduce((sum, t) => sum + (Number(t.profit_loss) || 0), 0);
+  const totalVolume = trades.reduce((sum, t) => sum + (t.amount || 0), 0);
+  const totalPL = trades.reduce((sum, t) => sum + (t.profit_loss || 0), 0);
 
   const filtered = trades.filter((t) => {
     if (filter !== 'all' && t.status !== filter) return false;
@@ -1029,7 +1020,7 @@ function TradeDataTab() {
 function WalletsTab({ users = [] }) {
   const [wallets, setWallets] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState({ currency: 'USDT_TRC20', address: '', label: '', network: 'TRC20' });
+  const [form, setForm] = useState({ currency: 'USDT', address: '', label: '', network: 'TRC20' });
   const [adding, setAdding] = useState(false);
 
   const [inrRate, setInrRate] = useState(85);
@@ -1058,12 +1049,12 @@ function WalletsTab({ users = [] }) {
 
   async function fetchWallets() {
     const { data } = await api.get('/wallets/all');
-    setWallets(asArray(data, ['wallets', 'data']));
+    setWallets(Array.isArray(data) ? data : data.wallets || []);
   }
 
   async function fetchBanks() {
     const { data } = await api.get('/banks/all');
-    setBanks(asArray(data, ['banks', 'data']));
+    setBanks(Array.isArray(data) ? data : data.banks || []);
   }
 
   async function fetchSettings() {
@@ -1101,7 +1092,7 @@ function WalletsTab({ users = [] }) {
     setAdding(true);
     try {
       await api.post('/wallets', form);
-      setForm({ currency: 'USDT_TRC20', address: '', label: '', network: 'TRC20' });
+      setForm({ currency: 'USDT', address: '', label: '', network: 'TRC20' });
       fetchWallets();
     } catch (err) {
       console.error(err);
@@ -1124,7 +1115,7 @@ function WalletsTab({ users = [] }) {
     if (!value || value <= 0) return;
     setRateSaving(true);
     try {
-      await api.put('/settings', { key: 'inr_rate', value });
+      await api.put('/settings', { inr_rate: value });
     } catch (err) {
       console.error(err);
     } finally {
@@ -1443,11 +1434,11 @@ function WalletsTab({ users = [] }) {
               onChange={(e) => setForm({ ...form, currency: e.target.value })}
               className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
             >
-              <option value="USDT_TRC20">USDT (TRC20)</option>
-              <option value="USDT_ERC20">USDT (ERC20)</option>
-              <option value="BTC">Bitcoin (BTC)</option>
-              <option value="ETH">Ethereum (ETH)</option>
-              <option value="USDC">USD Coin (USDC)</option>
+              <option value="USDT">USDT</option>
+              <option value="BTC">BTC</option>
+              <option value="ETH">ETH</option>
+              <option value="BNB">BNB</option>
+              <option value="SOL">SOL</option>
             </select>
           </div>
           <div>
@@ -1505,7 +1496,7 @@ function WalletsTab({ users = [] }) {
       ) : (
         <div className="space-y-2">
           {wallets.map((w) => (
-            <div key={w._id || w.id} className="bg-white rounded-xl shadow-sm border border-sky-100 p-4 flex items-center justify-between">
+            <div key={w.id} className="bg-white rounded-xl shadow-sm border border-sky-100 p-4 flex items-center justify-between">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-10 h-10 rounded-xl bg-sky-50 flex items-center justify-center flex-shrink-0">
                   <Wallet className="w-5 h-5 text-sky-500" />
@@ -1524,7 +1515,7 @@ function WalletsTab({ users = [] }) {
                 </div>
               </div>
               <button
-                onClick={() => handleDelete(w._id || w.id)}
+                onClick={() => handleDelete(w.id)}
                 className="flex-shrink-0 p-2 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
               >
                 <Trash2 className="w-4 h-4" />
@@ -1533,156 +1524,6 @@ function WalletsTab({ users = [] }) {
           ))}
         </div>
       )}
-    </div>
-  );
-}
-
-
-function FDPlansTab() {
-  const emptyForm = {
-    name: '', short_name: '', interest_rate: '', tenure: '',
-    min_amount: 500, max_amount: 0, payout: 'At maturity',
-    description: '', is_active: true, sort_order: 0,
-  };
-  const [plans, setPlans] = useState([]);
-  const [form, setForm] = useState(emptyForm);
-  const [editingId, setEditingId] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState('');
-
-  async function loadPlans() {
-    setLoading(true);
-    try {
-      const { data } = await api.get('/fixed-deposits');
-      setPlans(asArray(data, ['plans', 'fixedDeposits', 'data']));
-    } catch (err) {
-      setMessage(err?.response?.data?.message || 'Failed to load FD plans');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => { loadPlans(); }, []);
-
-  function updateField(key, value) {
-    setForm(prev => ({ ...prev, [key]: value }));
-  }
-
-  function editPlan(plan) {
-    setEditingId(plan._id || plan.id);
-    setForm({
-      name: plan.name || '', short_name: plan.short_name || '',
-      interest_rate: plan.interest_rate ?? '', tenure: plan.tenure || '',
-      min_amount: plan.min_amount ?? 0, max_amount: plan.max_amount ?? 0,
-      payout: plan.payout || 'At maturity', description: plan.description || '',
-      is_active: plan.is_active !== false, sort_order: plan.sort_order ?? 0,
-    });
-    setMessage('');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-
-  function resetForm() {
-    setEditingId(null);
-    setForm(emptyForm);
-    setMessage('');
-  }
-
-  async function savePlan(e) {
-    e.preventDefault();
-    if (!form.name.trim() || !form.tenure.trim() || form.interest_rate === '') {
-      setMessage('Name, interest rate and tenure are required.');
-      return;
-    }
-    setSaving(true);
-    setMessage('');
-    try {
-      const payload = {
-        ...form,
-        interest_rate: Number(form.interest_rate),
-        min_amount: Number(form.min_amount) || 0,
-        max_amount: Number(form.max_amount) || 0,
-        sort_order: Number(form.sort_order) || 0,
-      };
-      if (editingId) {
-        await api.put(`/fixed-deposits/${editingId}`, payload);
-        setMessage('FD plan updated successfully.');
-      } else {
-        await api.post('/fixed-deposits', payload);
-        setMessage('FD plan created successfully.');
-      }
-      resetForm();
-      await loadPlans();
-    } catch (err) {
-      setMessage(err?.response?.data?.message || 'Failed to save FD plan');
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function togglePlan(plan) {
-    try {
-      await api.put(`/fixed-deposits/${plan._id || plan.id}`, { is_active: !plan.is_active });
-      loadPlans();
-    } catch (err) {
-      setMessage(err?.response?.data?.message || 'Failed to update plan');
-    }
-  }
-
-  async function deletePlan(plan) {
-    if (!window.confirm(`Delete ${plan.name}?`)) return;
-    try {
-      await api.delete(`/fixed-deposits/${plan._id || plan.id}`);
-      if (editingId === (plan._id || plan.id)) resetForm();
-      loadPlans();
-    } catch (err) {
-      setMessage(err?.response?.data?.message || 'Failed to delete plan');
-    }
-  }
-
-  return (
-    <div className="space-y-5">
-      <div className="bg-white rounded-xl shadow-sm border border-sky-100 p-5">
-        <div className="flex items-center justify-between gap-3 mb-4">
-          <div>
-            <h3 className="font-heading text-lg font-bold text-gray-900">{editingId ? 'Edit FD Plan' : 'Add FD Plan'}</h3>
-            <p className="text-gray-400 text-xs mt-1">Control the fixed-deposit products shown to users.</p>
-          </div>
-          {editingId && <button onClick={resetForm} type="button" className="px-3 py-2 rounded-lg bg-gray-100 text-gray-600 text-xs font-semibold">Cancel edit</button>}
-        </div>
-        <form onSubmit={savePlan} className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
-          <div className="xl:col-span-2"><label className="text-xs text-gray-400">Plan name</label><input value={form.name} onChange={e => updateField('name', e.target.value)} placeholder="Fixed Deposit" className="w-full mt-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500" /></div>
-          <div><label className="text-xs text-gray-400">Short name</label><input value={form.short_name} onChange={e => updateField('short_name', e.target.value)} placeholder="FD" className="w-full mt-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500" /></div>
-          <div><label className="text-xs text-gray-400">Interest rate %</label><input type="number" step="0.01" min="0" value={form.interest_rate} onChange={e => updateField('interest_rate', e.target.value)} placeholder="7.50" className="w-full mt-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500" /></div>
-          <div><label className="text-xs text-gray-400">Tenure</label><input value={form.tenure} onChange={e => updateField('tenure', e.target.value)} placeholder="1 Year" className="w-full mt-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500" /></div>
-          <div><label className="text-xs text-gray-400">Minimum amount</label><input type="number" min="0" value={form.min_amount} onChange={e => updateField('min_amount', e.target.value)} className="w-full mt-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500" /></div>
-          <div><label className="text-xs text-gray-400">Maximum amount (0 = no limit)</label><input type="number" min="0" value={form.max_amount} onChange={e => updateField('max_amount', e.target.value)} className="w-full mt-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500" /></div>
-          <div><label className="text-xs text-gray-400">Payout</label><input value={form.payout} onChange={e => updateField('payout', e.target.value)} placeholder="At maturity" className="w-full mt-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500" /></div>
-          <div><label className="text-xs text-gray-400">Sort order</label><input type="number" value={form.sort_order} onChange={e => updateField('sort_order', e.target.value)} className="w-full mt-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500" /></div>
-          <div className="md:col-span-2 xl:col-span-3"><label className="text-xs text-gray-400">Description</label><textarea rows="2" value={form.description} onChange={e => updateField('description', e.target.value)} placeholder="Plan description" className="admin-input resize-none" /></div>
-          <label className="flex items-center gap-2 mt-5 text-sm text-gray-600 cursor-pointer"><input type="checkbox" checked={form.is_active} onChange={e => updateField('is_active', e.target.checked)} className="w-4 h-4 accent-sky-500" /> Show to users</label>
-          <div className="md:col-span-2 xl:col-span-4 flex items-center gap-3">
-            <button disabled={saving} className="px-5 py-2.5 rounded-lg bg-sky-500 hover:bg-sky-600 text-white text-sm font-semibold disabled:opacity-50">{saving ? 'Saving...' : editingId ? 'Update FD Plan' : 'Add FD Plan'}</button>
-            {message && <span className="text-xs text-gray-500">{message}</span>}
-          </div>
-        </form>
-      </div>
-
-      <div className="bg-white rounded-xl shadow-sm border border-sky-100 p-5">
-        <div className="flex items-center justify-between mb-4"><div><h3 className="font-heading text-lg font-bold text-gray-900">FD Plans</h3><p className="text-gray-400 text-xs mt-1">{plans.length} plan(s) configured</p></div><button onClick={loadPlans} className="p-2 rounded-lg hover:bg-gray-100 text-gray-400"><RefreshCw className="w-4 h-4" /></button></div>
-        {loading ? <div className="py-12 text-center text-gray-400 text-sm">Loading...</div> : plans.length === 0 ? <div className="py-12 text-center text-gray-400 text-sm">No FD plans yet.</div> : (
-          <div className="space-y-3">
-            {plans.map(plan => (
-              <div key={plan._id || plan.id} className="border border-gray-100 rounded-xl p-4 flex flex-col lg:flex-row lg:items-center gap-4">
-                <div className="w-10 h-10 rounded-xl bg-sky-50 flex items-center justify-center flex-shrink-0"><Landmark className="w-5 h-5 text-sky-500" /></div>
-                <div className="flex-1 min-w-0"><div className="flex items-center gap-2 flex-wrap"><h4 className="font-semibold text-gray-900">{plan.name}</h4><span className="text-xs text-sky-600 font-semibold">{plan.short_name}</span><span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${plan.is_active ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-gray-50 text-gray-400 border-gray-200'}`}>{plan.is_active ? 'Visible' : 'Hidden'}</span></div><p className="text-xs text-gray-400 mt-1">{plan.description || 'No description'}</p></div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs min-w-0 lg:min-w-[390px]"><div><span className="text-gray-400 block">Rate</span><b className="text-sky-600">{Number(plan.interest_rate).toFixed(2)}%</b></div><div><span className="text-gray-400 block">Tenure</span><b className="text-gray-700">{plan.tenure}</b></div><div><span className="text-gray-400 block">Minimum</span><b className="text-gray-700">₹{Number(plan.min_amount || 0).toLocaleString('en-IN')}</b></div><div><span className="text-gray-400 block">Payout</span><b className="text-gray-700">{plan.payout || 'Maturity'}</b></div></div>
-                <div className="flex items-center gap-1"><button onClick={() => togglePlan(plan)} className="p-2 rounded-lg hover:bg-gray-100 text-gray-500" title={plan.is_active ? 'Hide' : 'Show'}>{plan.is_active ? <ToggleRight className="w-5 h-5 text-emerald-500" /> : <ToggleLeft className="w-5 h-5" />}</button><button onClick={() => editPlan(plan)} className="p-2 rounded-lg hover:bg-sky-50 text-gray-500 hover:text-sky-600"><Pencil className="w-4 h-4" /></button><button onClick={() => deletePlan(plan)} className="p-2 rounded-lg hover:bg-red-50 text-gray-500 hover:text-red-600"><Trash2 className="w-4 h-4" /></button></div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
     </div>
   );
 }
@@ -1712,7 +1553,7 @@ export default function Admin() {
       if (statsRes.status === 'fulfilled') setStats(statsRes.value.data);
       if (usersRes.status === 'fulfilled') {
         const udata = usersRes.value.data;
-        setUsers(asArray(udata, ['users', 'data']));
+        setUsers(Array.isArray(udata) ? udata : udata.users || []);
       }
     } catch (err) {
       console.error(err);
@@ -1768,7 +1609,7 @@ export default function Admin() {
               </div>
             )}
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 bg-white p-1.5 rounded-xl shadow-sm border border-sky-100">
+            <div className="grid grid-cols-6 gap-2 bg-white p-1.5 rounded-xl shadow-sm border border-sky-100">
               {TABS.map((tab) => {
                 const TabIcon = tab.icon;
                 return (
@@ -1804,7 +1645,7 @@ export default function Admin() {
                   </div>
                   <div className="space-y-3">
                     {filteredUsers.map((u) => (
-                      <UserCard key={u._id || u.id} user={u} onRefresh={fetchAdminData} />
+                      <UserCard key={u.id} user={u} onRefresh={fetchAdminData} />
                     ))}
                     {filteredUsers.length === 0 && (
                       <div className="text-center py-12">
@@ -1820,7 +1661,6 @@ export default function Admin() {
               {activeTab === 'txns' && <TransactionsTab />}
               {activeTab === 'data' && <TradeDataTab />}
               {activeTab === 'wallets' && <WalletsTab users={users} />}
-              {activeTab === 'fd' && <FDPlansTab />}
             </div>
           </>
         )}
