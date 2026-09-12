@@ -101,6 +101,16 @@ function PriceTooltip({ active, payload, label }) {
   return null;
 }
 
+function toArray(value, keys = []) {
+  if (Array.isArray(value)) return value;
+  if (value && typeof value === 'object') {
+    for (const key of keys) {
+      if (Array.isArray(value[key])) return value[key];
+    }
+  }
+  return [];
+}
+
 export default function Dashboard() {
   const { user } = useAuth();
   const [prices, setPrices] = useState({});
@@ -133,7 +143,7 @@ export default function Dashboard() {
   }, [selectedCrypto]);
 
   useEffect(() => {
-    if (activeTrades.length === 0) {
+    if (!Array.isArray(activeTrades) || activeTrades.length === 0) {
       setCountdowns({});
       return;
     }
@@ -175,18 +185,30 @@ export default function Dashboard() {
         api.get('/trades/active'),
         api.get('/trades'),
       ]);
-      if (activeRes.status === 'fulfilled') setActiveTrades(activeRes.value.data);
-      if (historyRes.status === 'fulfilled') setTradeHistory(historyRes.value.data);
+      if (activeRes.status === 'fulfilled') {
+        const data = activeRes.value?.data;
+        setActiveTrades(toArray(data, ['trades', 'activeTrades', 'data']));
+      } else {
+        setActiveTrades([]);
+      }
+      if (historyRes.status === 'fulfilled') {
+        const data = historyRes.value?.data;
+        setTradeHistory(toArray(data, ['trades', 'tradeHistory', 'history', 'data']));
+      } else {
+        setTradeHistory([]);
+      }
     } catch (err) {
       console.error('Failed to fetch dashboard data:', err);
+      setActiveTrades([]);
+      setTradeHistory([]);
     }
   }
-
 
   async function fetchFDPlans() {
     try {
       const { data } = await api.get('/fixed-deposits/public');
-      setFdPlans(Array.isArray(data) ? data : []);
+      const plans = toArray(data, ['plans', 'fixedDeposits', 'deposits', 'data']);
+      setFdPlans(plans);
     } catch (err) {
       console.error('Failed to fetch FD plans:', err);
       setFdPlans([]);
@@ -198,13 +220,14 @@ export default function Dashboard() {
       setChartLoading(true);
       const coinId = CRYPTO_CONFIG[selectedCrypto].coinId;
       const { data } = await api.get(`/prices/market-chart/${coinId}`);
-      if (data && data.prices) {
-        const formatted = data.prices.map((p) => ({
+      const pricesData = Array.isArray(data?.prices) ? data.prices : [];
+      const formatted = pricesData
+        .filter((p) => Array.isArray(p) && p.length >= 2)
+        .map((p) => ({
           time: new Date(p[0]).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-          price: p[1],
+          price: Number(p[1]) || 0,
         }));
-        setChartData(formatted);
-      }
+      setChartData(formatted);
     } catch (err) {
       console.error('Failed to fetch chart data:', err);
       setChartData([]);
