@@ -1,3 +1,4 @@
+```jsx
 import { createContext, useContext, useState, useEffect } from 'react';
 import api from '../lib/api';
 
@@ -10,9 +11,30 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const token = localStorage.getItem('token');
     const savedUser = localStorage.getItem('user');
+
     if (token && savedUser) {
-      setUser(JSON.parse(savedUser));
-      fetchUser();
+      try {
+        const parsedUser = JSON.parse(savedUser);
+
+        // Make sure stored user is a valid object
+        if (parsedUser && typeof parsedUser === 'object') {
+          setUser(parsedUser);
+          fetchUser();
+        } else {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          setUser(null);
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error('Invalid saved user data:', error);
+
+        // Clear corrupted localStorage data
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        setUser(null);
+        setLoading(false);
+      }
     } else {
       setLoading(false);
     }
@@ -21,9 +43,16 @@ export function AuthProvider({ children }) {
   const fetchUser = async () => {
     try {
       const { data } = await api.get('/auth/me');
-      setUser(data);
-      localStorage.setItem('user', JSON.stringify(data));
-    } catch {
+
+      if (data) {
+        setUser(data);
+        localStorage.setItem('user', JSON.stringify(data));
+      } else {
+        throw new Error('Invalid user response');
+      }
+    } catch (error) {
+      console.error('Failed to fetch user:', error);
+
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       setUser(null);
@@ -33,10 +62,20 @@ export function AuthProvider({ children }) {
   };
 
   const login = async (email, password) => {
-    const { data } = await api.post('/auth/login', { email, password });
+    const { data } = await api.post('/auth/login', {
+      email,
+      password
+    });
+
+    if (!data?.token || !data?.user) {
+      throw new Error('Invalid login response from server');
+    }
+
     localStorage.setItem('token', data.token);
     localStorage.setItem('user', JSON.stringify(data.user));
+
     setUser(data.user);
+
     return data;
   };
 
@@ -49,9 +88,16 @@ export function AuthProvider({ children }) {
       mobile: extra.mobile || undefined,
       country_code: extra.country_code || undefined,
     });
+
+    if (!data?.token || !data?.user) {
+      throw new Error('Invalid registration response from server');
+    }
+
     localStorage.setItem('token', data.token);
     localStorage.setItem('user', JSON.stringify(data.user));
+
     setUser(data.user);
+
     return data;
   };
 
@@ -63,14 +109,26 @@ export function AuthProvider({ children }) {
 
   const updateUser = (updates) => {
     setUser(prev => {
-      const updated = { ...prev, ...updates };
+      const updated = { ...(prev || {}), ...updates };
+
       localStorage.setItem('user', JSON.stringify(updated));
+
       return updated;
     });
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, updateUser, loading, fetchUser }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        login,
+        register,
+        logout,
+        updateUser,
+        loading,
+        fetchUser
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -78,6 +136,11 @@ export function AuthProvider({ children }) {
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth must be used within AuthProvider');
+
+  if (!context) {
+    throw new Error('useAuth must be used within AuthProvider');
+  }
+
   return context;
 };
+```
