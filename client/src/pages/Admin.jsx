@@ -10,6 +10,8 @@ import {
   Activity,
   Clock,
   Wallet,
+  DollarSign,
+  BadgeCheck,
   Search,
   ToggleRight,
   ToggleLeft,
