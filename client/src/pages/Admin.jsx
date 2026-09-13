@@ -633,7 +633,7 @@ function VerifyTab({ onRefresh }) {
       ) : (
         <div className="space-y-3">
           {filtered.map((u) => (
-            <div key={u.id} className="bg-white rounded-xl shadow-sm border border-sky-100 p-4">
+            <div key={u._id || u.id} className="bg-white rounded-xl shadow-sm border border-sky-100 p-4">
               <div className="flex items-start justify-between">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
@@ -648,14 +648,14 @@ function VerifyTab({ onRefresh }) {
                 </div>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => handleVerify(u.id, 'verified')}
+                    onClick={() => handleVerify(u._id || u.id, 'verified')}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors"
                   >
                     <CheckCircle className="w-3.5 h-3.5" />
                     Verify
                   </button>
                   <button
-                    onClick={() => handleVerify(u.id, 'unverified')}
+                    onClick={() => onClick={() => handleVerify(u._id || u.id, 'unverified')}(u._id || u.id, 'verified')}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
                   >
                     <XCircle className="w-3.5 h-3.5" />
