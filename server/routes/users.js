@@ -1,22 +1,9 @@
-const express = require('express');
-const bcrypt = require('bcryptjs');
-
-const User = require('../models/User');
+```js
+import express from 'express';
+import bcrypt from 'bcryptjs';
+import User from '../models/User.js';
 
 const router = express.Router();
-
-/*
-|--------------------------------------------------------------------------
-| AUTH HELPERS
-|--------------------------------------------------------------------------
-| This file assumes your project already has authentication middleware
-| protecting admin routes at the server/app level.
-|
-| If your existing users.js already imports auth middleware, keep that
-| middleware in server.js / route mounting exactly as it is.
-|--------------------------------------------------------------------------
-*/
-
 
 /*
 |--------------------------------------------------------------------------
@@ -51,18 +38,9 @@ function getAvailableBalance(user) {
   );
 }
 
-
 /*
 |--------------------------------------------------------------------------
 | PUBLIC HELPERS FOR TRADE / WITHDRAWAL ROUTES
-|--------------------------------------------------------------------------
-| Other routes can import these:
-|
-| const {
-|   getAvailableBalance,
-|   ensureTradingAllowed,
-|   ensureWithdrawalAllowed
-| } = require('./users');
 |--------------------------------------------------------------------------
 */
 
@@ -118,7 +96,6 @@ function ensureWithdrawalAllowed(user, amount = 0) {
   return true;
 }
 
-
 /*
 |--------------------------------------------------------------------------
 | GET ALL USERS
@@ -142,7 +119,6 @@ router.get('/', async (req, res) => {
 
       return {
         ...data,
-
         frozen_balance: frozen,
         available_balance: available,
       };
@@ -158,7 +134,6 @@ router.get('/', async (req, res) => {
     });
   }
 });
-
 
 /*
 |--------------------------------------------------------------------------
@@ -194,7 +169,6 @@ router.get('/:id', async (req, res) => {
     });
   }
 });
-
 
 /*
 |--------------------------------------------------------------------------
@@ -262,7 +236,6 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-
 /*
 |--------------------------------------------------------------------------
 | TOGGLE USER SETTINGS
@@ -313,15 +286,9 @@ router.post('/:id/toggle', async (req, res) => {
   }
 });
 
-
 /*
 |--------------------------------------------------------------------------
 | ADJUST BALANCE
-|--------------------------------------------------------------------------
-| Add / deduct from TOTAL balance.
-|
-| Deduct is only allowed against available balance.
-| Frozen amount can never be deducted.
 |--------------------------------------------------------------------------
 */
 
@@ -399,13 +366,9 @@ router.post('/:id/adjust-balance', async (req, res) => {
   }
 });
 
-
 /*
 |--------------------------------------------------------------------------
 | FREEZE BALANCE
-|--------------------------------------------------------------------------
-| Frozen amount stays inside total balance but becomes unavailable
-| for trading and withdrawal.
 |--------------------------------------------------------------------------
 */
 
@@ -437,11 +400,10 @@ router.post('/:id/freeze', async (req, res) => {
 
     const currentFrozen = getFrozenBalance(user);
 
-    const available =
-      Math.max(
-        0,
-        currentBalance - currentFrozen
-      );
+    const available = Math.max(
+      0,
+      currentBalance - currentFrozen
+    );
 
     if (value > available) {
       return res.status(400).json({
@@ -481,7 +443,6 @@ router.post('/:id/freeze', async (req, res) => {
     });
   }
 });
-
 
 /*
 |--------------------------------------------------------------------------
@@ -556,12 +517,9 @@ router.post('/:id/unfreeze', async (req, res) => {
   }
 });
 
-
 /*
 |--------------------------------------------------------------------------
 | ADD DEPOSIT
-|--------------------------------------------------------------------------
-| Adds amount to balance and total_deposited.
 |--------------------------------------------------------------------------
 */
 
@@ -611,15 +569,9 @@ router.post('/:id/add-deposit', async (req, res) => {
   }
 });
 
-
 /*
 |--------------------------------------------------------------------------
 | ADD WITHDRAWAL
-|--------------------------------------------------------------------------
-| This admin accounting action only updates total_withdrawn.
-|
-| If this is being used to actually remove money from the user's balance,
-| the withdrawal processing route should use ensureWithdrawalAllowed().
 |--------------------------------------------------------------------------
 */
 
@@ -667,12 +619,9 @@ router.post('/:id/add-withdrawal', async (req, res) => {
   }
 });
 
-
 /*
 |--------------------------------------------------------------------------
 | ADD PROFIT
-|--------------------------------------------------------------------------
-| Adds profit to balance and total_profit.
 |--------------------------------------------------------------------------
 */
 
@@ -722,7 +671,6 @@ router.post('/:id/add-profit', async (req, res) => {
   }
 });
 
-
 /*
 |--------------------------------------------------------------------------
 | SET CREDIT SCORE
@@ -767,7 +715,6 @@ router.post('/:id/set-credit-score', async (req, res) => {
     });
   }
 });
-
 
 /*
 |--------------------------------------------------------------------------
@@ -820,7 +767,6 @@ router.post('/:id/adjust-credit-score', async (req, res) => {
   }
 });
 
-
 /*
 |--------------------------------------------------------------------------
 | SET LOGIN PASSWORD
@@ -871,7 +817,6 @@ router.post('/:id/set-password', async (req, res) => {
     });
   }
 });
-
 
 /*
 |--------------------------------------------------------------------------
@@ -937,7 +882,6 @@ router.post(
   }
 );
 
-
 /*
 |--------------------------------------------------------------------------
 | VERIFY / REJECT USER
@@ -949,10 +893,6 @@ router.post('/:id/verify', async (req, res) => {
     const status =
       String(req.body.status || '');
 
-    /*
-     * Support both the old "unverified" value used by the
-     * existing Admin.jsx and the newer "rejected" value.
-     */
     const allowedStatuses = [
       'pending',
       'verified',
@@ -1001,7 +941,6 @@ router.post('/:id/verify', async (req, res) => {
   }
 });
 
-
 /*
 |--------------------------------------------------------------------------
 | DELETE USER
@@ -1039,13 +978,9 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-
 /*
 |--------------------------------------------------------------------------
 | BALANCE CHECK API
-|--------------------------------------------------------------------------
-| Useful for frontend and other systems to see exactly what the user
-| can currently use.
 |--------------------------------------------------------------------------
 */
 
@@ -1093,10 +1028,9 @@ router.get('/:id/balance-status', async (req, res) => {
   }
 });
 
-
 /*
 |--------------------------------------------------------------------------
-| EXPORT ROUTER + HELPERS
+| TRADING CHECK
 |--------------------------------------------------------------------------
 */
 
@@ -1160,6 +1094,11 @@ router.get('/:id/trading-check', async (req, res) => {
   }
 });
 
+/*
+|--------------------------------------------------------------------------
+| WITHDRAWAL CHECK
+|--------------------------------------------------------------------------
+*/
 
 router.get('/:id/withdrawal-check', async (req, res) => {
   try {
@@ -1221,27 +1160,18 @@ router.get('/:id/withdrawal-check', async (req, res) => {
   }
 });
 
-
-module.exports = router;
-
-
 /*
 |--------------------------------------------------------------------------
-| ALSO EXPORT HELPERS
-|--------------------------------------------------------------------------
-| Express router is the default export, while these properties allow
-| other route files to use the balance restriction helpers.
+| EXPORT ROUTER + HELPERS
 |--------------------------------------------------------------------------
 */
 
-module.exports.getAvailableBalance =
-  getAvailableBalance;
+export {
+  getAvailableBalance,
+  getFrozenBalance,
+  ensureTradingAllowed,
+  ensureWithdrawalAllowed,
+};
 
-module.exports.getFrozenBalance =
-  getFrozenBalance;
-
-module.exports.ensureTradingAllowed =
-  ensureTradingAllowed;
-
-module.exports.ensureWithdrawalAllowed =
-  ensureWithdrawalAllowed;
+export default router;
+```
