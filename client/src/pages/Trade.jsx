@@ -322,4 +322,7 @@ const fetchChartData = useCallback(
     selectedCrypto,
     renderCandlestickChart,
   ]
-);
+  );
+}
+
+export default Trade;
