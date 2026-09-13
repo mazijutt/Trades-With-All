@@ -57,6 +57,137 @@ router.get('/users', protect, adminOnly, async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
+  // ===============================
+// FREEZE USER AMOUNT
+// ===============================
+router.post('/users/:id/freeze', protect, adminOnly, async (req, res) => {
+  try {
+    const { amount, reason } = req.body;
+
+    const freezeAmount = Number(amount);
+
+    if (!Number.isFinite(freezeAmount) || freezeAmount <= 0) {
+      return res.status(400).json({
+        message: 'Please enter a valid freeze amount',
+      });
+    }
+
+    const user = await User.findById(req.params.id);
+
+    if (!user) {
+      return res.status(404).json({
+        message: 'User not found',
+      });
+    }
+
+    const currentBalance = Number(user.balance || 0);
+    const currentFrozen = Number(user.frozen_balance || 0);
+
+    const availableBalance = currentBalance - currentFrozen;
+
+    if (freezeAmount > availableBalance) {
+      return res.status(400).json({
+        message: `Only ${availableBalance} is available to freeze`,
+      });
+    }
+
+    user.frozen_balance = currentFrozen + freezeAmount;
+
+    await user.save();
+
+    // Optional notification for user
+    try {
+      await Notification.create({
+        user_id: user._id,
+        title: 'Amount Frozen',
+        message: `$${freezeAmount.toFixed(2)} has been frozen from your available balance.${reason ? ` Reason: ${reason}` : ''}`,
+        type: 'warning',
+      });
+    } catch (notificationError) {
+      console.error('Notification error:', notificationError.message);
+    }
+
+    res.json({
+      message: 'Amount frozen successfully',
+      balance: Number(user.balance || 0),
+      frozen_balance: Number(user.frozen_balance || 0),
+      available_balance:
+        Number(user.balance || 0) - Number(user.frozen_balance || 0),
+    });
+  } catch (error) {
+    console.error('Freeze amount error:', error);
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+});
+
+
+// ===============================
+// UNFREEZE USER AMOUNT
+// ===============================
+router.post('/users/:id/unfreeze', protect, adminOnly, async (req, res) => {
+  try {
+    const { amount, reason } = req.body;
+
+    const unfreezeAmount = Number(amount);
+
+    if (!Number.isFinite(unfreezeAmount) || unfreezeAmount <= 0) {
+      return res.status(400).json({
+        message: 'Please enter a valid unfreeze amount',
+      });
+    }
+
+    const user = await User.findById(req.params.id);
+
+    if (!user) {
+      return res.status(404).json({
+        message: 'User not found',
+      });
+    }
+
+    const currentFrozen = Number(user.frozen_balance || 0);
+
+    if (unfreezeAmount > currentFrozen) {
+      return res.status(400).json({
+        message: `Only ${currentFrozen} is currently frozen`,
+      });
+    }
+
+    user.frozen_balance = currentFrozen - unfreezeAmount;
+
+    if (user.frozen_balance < 0) {
+      user.frozen_balance = 0;
+    }
+
+    await user.save();
+
+    // Optional notification for user
+    try {
+      await Notification.create({
+        user_id: user._id,
+        title: 'Amount Unfrozen',
+        message: `$${unfreezeAmount.toFixed(2)} has been unfrozen and is now available.${reason ? ` ${reason}` : ''}`,
+        type: 'success',
+      });
+    } catch (notificationError) {
+      console.error('Notification error:', notificationError.message);
+    }
+
+    res.json({
+      message: 'Amount unfrozen successfully',
+      balance: Number(user.balance || 0),
+      frozen_balance: Number(user.frozen_balance || 0),
+      available_balance:
+        Number(user.balance || 0) - Number(user.frozen_balance || 0),
+    });
+  } catch (error) {
+    console.error('Unfreeze amount error:', error);
+    res.status(500).json({
+      message: error.message,
+    });
+  }
+});
 });
 
 router.get('/trades', protect, adminOnly, async (req, res) => {
