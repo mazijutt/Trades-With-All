@@ -2,7 +2,12 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
-import { formatCurrency, formatDate, getCreditScoreTier } from '../lib/utils';
+import {
+  formatCurrency,
+  formatDate,
+  getCreditScoreTier,
+} from '../lib/utils';
+
 import {
   ShieldCheck,
   Users,
@@ -38,10 +43,8 @@ import {
   Megaphone,
   AlertTriangle,
   ShieldAlert,
-  RefreshCw,
   UserCheck,
   User,
-  Mail,
   ChevronDown,
   Scale,
   Banknote,
@@ -50,7 +53,14 @@ import {
   CalendarDays,
   Languages,
   WalletCards,
+  Snowflake,
+  Unlock,
+  RefreshCw,
 } from 'lucide-react';
+
+/* =========================================================
+   TABS
+========================================================= */
 
 const TABS = [
   { id: 'users', label: 'Users', icon: Users },
@@ -61,6 +71,10 @@ const TABS = [
   { id: 'notifications', label: 'Notifications', icon: Bell },
 ];
 
+/* =========================================================
+   SPINNER
+========================================================= */
+
 function Spinner() {
   return (
     <div className="flex items-center justify-center min-h-screen">
@@ -69,7 +83,17 @@ function Spinner() {
   );
 }
 
-function StatCard({ icon: Icon, label, value, color = 'sky', sub }) {
+/* =========================================================
+   STAT CARD
+========================================================= */
+
+function StatCard({
+  icon: Icon,
+  label,
+  value,
+  color = 'sky',
+  sub,
+}) {
   const colors = {
     sky: 'bg-sky-50 text-sky-600',
     emerald: 'bg-emerald-50 text-emerald-600',
@@ -90,10 +114,16 @@ function StatCard({ icon: Icon, label, value, color = 'sky', sub }) {
 
   return (
     <div
-      className={`bg-white rounded-xl shadow-sm border border-sky-100 p-5 transition-colors ${borderColors[color]}`}
+      className={`bg-white rounded-xl shadow-sm border border-sky-100 p-5 transition-colors ${
+        borderColors[color]
+      }`}
     >
       <div className="flex items-center justify-between mb-3">
-        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${colors[color]}`}>
+        <div
+          className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+            colors[color]
+          }`}
+        >
           <Icon className="w-5 h-5" />
         </div>
       </div>
@@ -115,7 +145,16 @@ function StatCard({ icon: Icon, label, value, color = 'sky', sub }) {
   );
 }
 
-function Dialog({ open, onClose, title, children }) {
+/* =========================================================
+   DIALOG
+========================================================= */
+
+function Dialog({
+  open,
+  onClose,
+  title,
+  children,
+}) {
   if (!open) return null;
 
   return (
@@ -145,6 +184,10 @@ function Dialog({ open, onClose, title, children }) {
   );
 }
 
+/* =========================================================
+   AMOUNT DIALOG
+========================================================= */
+
 function AmountDialog({
   title,
   label,
@@ -171,7 +214,11 @@ function AmountDialog({
   }
 
   return (
-    <Dialog open onClose={onClose} title={title}>
+    <Dialog
+      open
+      onClose={onClose}
+      title={title}
+    >
       <div className="space-y-4">
         <div>
           <label className="text-gray-400 text-xs font-medium uppercase tracking-wider mb-2 block">
@@ -183,8 +230,12 @@ function AmountDialog({
 
             <input
               type="number"
+              min="0"
+              step="0.01"
               value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              onChange={(e) =>
+                setAmount(e.target.value)
+              }
               placeholder="0.00"
               className="w-full bg-gray-50 border border-gray-200 rounded-lg pl-10 pr-4 py-2.5 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
             />
@@ -196,31 +247,93 @@ function AmountDialog({
           disabled={loading || !amount}
           className="w-full py-2.5 rounded-lg text-sm font-semibold bg-sky-500 hover:bg-sky-600 text-white transition-colors disabled:opacity-50"
         >
-          {loading ? 'Processing...' : actionLabel}
+          {loading
+            ? 'Processing...'
+            : actionLabel}
         </button>
       </div>
     </Dialog>
   );
 }
 
-function UserCard({ user: u, onRefresh }) {
-  const [balanceDialog, setBalanceDialog] = useState(false);
-  const [loginPasswordDialog, setLoginPasswordDialog] = useState(false);
-  const [withdrawPasswordDialog, setWithdrawPasswordDialog] = useState(false);
-  const [creditDialog, setCreditDialog] = useState(false);
-  const [depositDialog, setDepositDialog] = useState(false);
-  const [withdrawDialog, setWithdrawDialog] = useState(false);
-  const [profitDialog, setProfitDialog] = useState(false);
+/* =========================================================
+   USER CARD
+========================================================= */
 
-  const [balanceAmount, setBalanceAmount] = useState('');
-  const [balanceAction, setBalanceAction] = useState('add');
-  const [newPassword, setNewPassword] = useState('');
-  const [withdrawPassword, setWithdrawPassword] = useState('');
-  const [creditScore, setCreditScore] = useState('');
-  const [loading, setLoading] = useState(false);
+function UserCard({
+  user: u,
+  onRefresh,
+}) {
+  const [balanceDialog, setBalanceDialog] =
+    useState(false);
 
-  const tier = getCreditScoreTier(u.credit_score || 0);
+  const [loginPasswordDialog, setLoginPasswordDialog] =
+    useState(false);
+
+  const [withdrawPasswordDialog, setWithdrawPasswordDialog] =
+    useState(false);
+
+  const [creditDialog, setCreditDialog] =
+    useState(false);
+
+  const [depositDialog, setDepositDialog] =
+    useState(false);
+
+  const [withdrawDialog, setWithdrawDialog] =
+    useState(false);
+
+  const [profitDialog, setProfitDialog] =
+    useState(false);
+
+  const [freezeDialog, setFreezeDialog] =
+    useState(false);
+
+  const [unfreezeDialog, setUnfreezeDialog] =
+    useState(false);
+
+  const [balanceAmount, setBalanceAmount] =
+    useState('');
+
+  const [balanceAction, setBalanceAction] =
+    useState('add');
+
+  const [newPassword, setNewPassword] =
+    useState('');
+
+  const [withdrawPassword, setWithdrawPassword] =
+    useState('');
+
+  const [creditScore, setCreditScore] =
+    useState('');
+
+  const [freezeAmount, setFreezeAmount] =
+    useState('');
+
+  const [unfreezeAmount, setUnfreezeAmount] =
+    useState('');
+
+  const [loading, setLoading] =
+    useState(false);
+
+  const tier = getCreditScoreTier(
+    u.credit_score || 0
+  );
+
   const userId = u._id || u.id;
+
+  const totalBalance = Number(
+    u.balance || 0
+  );
+
+  const frozenBalance = Math.max(
+    0,
+    Number(u.frozen_balance || 0)
+  );
+
+  const availableBalance = Math.max(
+    0,
+    totalBalance - frozenBalance
+  );
 
   async function runAction(fn, reset) {
     setLoading(true);
@@ -231,6 +344,14 @@ function UserCard({ user: u, onRefresh }) {
       reset?.();
     } catch (err) {
       console.error(err);
+
+      const message =
+        err?.response?.data?.message ||
+        err?.response?.data?.error;
+
+      if (message) {
+        alert(message);
+      }
     } finally {
       setLoading(false);
     }
@@ -238,22 +359,109 @@ function UserCard({ user: u, onRefresh }) {
 
   async function handleToggle(field) {
     await runAction(() =>
-      api.post(`/users/${userId}/toggle`, { field })
+      api.post(
+        `/users/${userId}/toggle`,
+        { field }
+      )
     );
   }
 
   async function handleBalance() {
     if (!balanceAmount) return;
 
+    const amount =
+      parseFloat(balanceAmount);
+
+    if (!amount || amount <= 0) return;
+
+    if (
+      balanceAction === 'deduct' &&
+      amount > availableBalance
+    ) {
+      alert(
+        `Available balance is only ${availableBalance.toFixed(
+          2
+        )} USDT.`
+      );
+      return;
+    }
+
     await runAction(
       () =>
-        api.post(`/users/${userId}/adjust-balance`, {
-          action: balanceAction,
-          amount: parseFloat(balanceAmount),
-        }),
+        api.post(
+          `/users/${userId}/adjust-balance`,
+          {
+            action: balanceAction,
+            amount,
+          }
+        ),
       () => {
         setBalanceDialog(false);
         setBalanceAmount('');
+      }
+    );
+  }
+
+  async function handleFreeze() {
+    const amount =
+      parseFloat(freezeAmount);
+
+    if (!amount || amount <= 0) {
+      alert('Enter a valid freeze amount.');
+      return;
+    }
+
+    if (amount > availableBalance) {
+      alert(
+        `You can freeze maximum ${availableBalance.toFixed(
+          2
+        )} USDT.`
+      );
+      return;
+    }
+
+    await runAction(
+      () =>
+        api.post(
+          `/users/${userId}/freeze`,
+          { amount }
+        ),
+      () => {
+        setFreezeDialog(false);
+        setFreezeAmount('');
+      }
+    );
+  }
+
+  async function handleUnfreeze() {
+    const amount =
+      parseFloat(unfreezeAmount);
+
+    if (!amount || amount <= 0) {
+      alert(
+        'Enter a valid unfreeze amount.'
+      );
+      return;
+    }
+
+    if (amount > frozenBalance) {
+      alert(
+        `Frozen balance is only ${frozenBalance.toFixed(
+          2
+        )} USDT.`
+      );
+      return;
+    }
+
+    await runAction(
+      () =>
+        api.post(
+          `/users/${userId}/unfreeze`,
+          { amount }
+        ),
+      () => {
+        setUnfreezeDialog(false);
+        setUnfreezeAmount('');
       }
     );
   }
@@ -263,9 +471,12 @@ function UserCard({ user: u, onRefresh }) {
 
     await runAction(
       () =>
-        api.post(`/users/${userId}/set-password`, {
-          password: newPassword,
-        }),
+        api.post(
+          `/users/${userId}/set-password`,
+          {
+            password: newPassword,
+          }
+        ),
       () => {
         setLoginPasswordDialog(false);
         setNewPassword('');
@@ -278,9 +489,13 @@ function UserCard({ user: u, onRefresh }) {
 
     await runAction(
       () =>
-        api.post(`/users/${userId}/set-withdrawal-password`, {
-          withdrawal_password: withdrawPassword,
-        }),
+        api.post(
+          `/users/${userId}/set-withdrawal-password`,
+          {
+            withdrawal_password:
+              withdrawPassword,
+          },
+        ),
       () => {
         setWithdrawPasswordDialog(false);
         setWithdrawPassword('');
@@ -293,9 +508,15 @@ function UserCard({ user: u, onRefresh }) {
 
     await runAction(
       () =>
-        api.post(`/users/${userId}/set-credit-score`, {
-          score: parseInt(creditScore),
-        }),
+        api.post(
+          `/users/${userId}/set-credit-score`,
+          {
+            score: parseInt(
+              creditScore,
+              10
+            ),
+          }
+        ),
       () => {
         setCreditDialog(false);
         setCreditScore('');
@@ -306,16 +527,19 @@ function UserCard({ user: u, onRefresh }) {
   return (
     <>
       <div className="bg-white rounded-xl shadow-sm border border-sky-100 p-4 space-y-3">
+        {/* USER HEADER */}
         <div className="flex items-start justify-between flex-wrap gap-2">
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-400 to-sky-600 flex items-center justify-center text-sm font-bold text-white flex-shrink-0">
-              {u.full_name?.[0]?.toUpperCase() || 'U'}
+              {u.full_name?.[0]?.toUpperCase() ||
+                'U'}
             </div>
 
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <p className="text-gray-900 font-semibold text-sm truncate">
-                  {u.full_name || 'Unknown User'}
+                  {u.full_name ||
+                    'Unknown User'}
                 </p>
 
                 <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-sky-50 text-sky-600">
@@ -324,14 +548,17 @@ function UserCard({ user: u, onRefresh }) {
 
                 <span
                   className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                    u.identity_status === 'verified'
+                    u.identity_status ===
+                    'verified'
                       ? 'bg-emerald-50 text-emerald-600'
-                      : u.identity_status === 'pending'
+                      : u.identity_status ===
+                        'pending'
                       ? 'bg-amber-50 text-amber-600'
                       : 'bg-red-50 text-red-600'
                   }`}
                 >
-                  {u.identity_status || 'unverified'}
+                  {u.identity_status ||
+                    'unverified'}
                 </span>
 
                 {u.has_withdrawal_password ? (
@@ -353,43 +580,103 @@ function UserCard({ user: u, onRefresh }) {
 
               <p className="flex items-center gap-1 text-gray-400 text-[11px] mt-0.5">
                 <CalendarDays className="w-3 h-3" />
-                Joined {u.createdAt ? formatDate(u.createdAt) : '-'}
+                Joined{' '}
+                {u.createdAt
+                  ? formatDate(
+                      u.createdAt
+                    )
+                  : '-'}
               </p>
             </div>
           </div>
         </div>
 
+        {/* USER INFORMATION */}
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2.5 text-xs pt-2">
+          {/* BALANCE */}
           <div className="bg-sky-50/60 rounded-lg p-2.5">
-            <span className="text-gray-400">Balance</span>
+            <span className="text-gray-400">
+              Balance
+            </span>
+
             <p className="text-gray-900 font-semibold">
-              {formatCurrency(u.balance || 0)}
+              {formatCurrency(
+                totalBalance
+              )}
             </p>
           </div>
 
-          <div className="bg-emerald-50/60 rounded-lg p-2.5">
-            <span className="text-gray-400">Total Deposited</span>
-            <p className="text-emerald-700 font-semibold">
-              {formatCurrency(u.total_deposited || 0)}
-            </p>
-          </div>
+          {/* FROZEN */}
+          <div className="bg-blue-50 rounded-lg p-2.5">
+            <span className="flex items-center gap-1 text-blue-500">
+              <Snowflake className="w-3 h-3" />
+              Frozen
+            </span>
 
-          <div className="bg-red-50/60 rounded-lg p-2.5">
-            <span className="text-gray-400">Total Withdrawn</span>
-            <p className="text-red-700 font-semibold">
-              {formatCurrency(u.total_withdrawn || 0)}
-            </p>
-          </div>
-
-          <div className="bg-blue-50/60 rounded-lg p-2.5">
-            <span className="text-gray-400">Total Profit</span>
             <p className="text-blue-700 font-semibold">
-              {formatCurrency(u.total_profit || 0)}
+              {formatCurrency(
+                frozenBalance
+              )}
             </p>
           </div>
 
+          {/* AVAILABLE */}
+          <div className="bg-emerald-50/70 rounded-lg p-2.5">
+            <span className="text-gray-400">
+              Available
+            </span>
+
+            <p className="text-emerald-700 font-semibold">
+              {formatCurrency(
+                availableBalance
+              )}
+            </p>
+          </div>
+
+          {/* DEPOSITED */}
+          <div className="bg-emerald-50/60 rounded-lg p-2.5">
+            <span className="text-gray-400">
+              Total Deposited
+            </span>
+
+            <p className="text-emerald-700 font-semibold">
+              {formatCurrency(
+                u.total_deposited || 0
+              )}
+            </p>
+          </div>
+
+          {/* WITHDRAWN */}
+          <div className="bg-red-50/60 rounded-lg p-2.5">
+            <span className="text-gray-400">
+              Total Withdrawn
+            </span>
+
+            <p className="text-red-700 font-semibold">
+              {formatCurrency(
+                u.total_withdrawn || 0
+              )}
+            </p>
+          </div>
+
+          {/* PROFIT */}
+          <div className="bg-blue-50/60 rounded-lg p-2.5">
+            <span className="text-gray-400">
+              Total Profit
+            </span>
+
+            <p className="text-blue-700 font-semibold">
+              {formatCurrency(
+                u.total_profit || 0
+              )}
+            </p>
+          </div>
+
+          {/* CREDIT SCORE */}
           <div className="bg-violet-50/60 rounded-lg p-2.5">
-            <span className="text-gray-400">Credit Score</span>
+            <span className="text-gray-400">
+              Credit Score
+            </span>
 
             <div className="flex items-center gap-1.5">
               <p className="text-gray-900 font-semibold">
@@ -404,6 +691,7 @@ function UserCard({ user: u, onRefresh }) {
             </div>
           </div>
 
+          {/* LANGUAGE */}
           <div className="bg-gray-50 rounded-lg p-2.5">
             <span className="flex items-center gap-1 text-gray-400">
               <Languages className="w-3 h-3" />
@@ -415,66 +703,101 @@ function UserCard({ user: u, onRefresh }) {
             </p>
           </div>
 
+          {/* DOB */}
           <div className="bg-gray-50 rounded-lg p-2.5">
-            <span className="text-gray-400">Date of Birth</span>
+            <span className="text-gray-400">
+              Date of Birth
+            </span>
 
             <p className="text-gray-800 font-medium">
               {u.date_of_birth || '-'}
             </p>
           </div>
 
+          {/* MOBILE */}
           <div className="bg-gray-50 rounded-lg p-2.5">
-            <span className="text-gray-400">Mobile Number</span>
+            <span className="text-gray-400">
+              Mobile Number
+            </span>
 
             <p className="text-gray-800 font-medium">
-              {(u.country_code || '') +
-                (u.mobile ? ` ${u.mobile}` : u.mobile || '-')}
+              {(u.country_code ||
+                '') +
+                (u.mobile
+                  ? ` ${u.mobile}`
+                  : u.mobile || '-')}
             </p>
           </div>
 
+          {/* REFERRAL */}
           <div className="bg-gray-50 rounded-lg p-2.5">
-            <span className="text-gray-400">Referral Code</span>
+            <span className="text-gray-400">
+              Referral Code
+            </span>
 
             <p className="text-gray-800 font-medium font-mono text-[11px]">
-              {u.referral_code || '-'}
+              {u.referral_code ||
+                '-'}
             </p>
 
             <p className="text-gray-400 text-[10px] mt-0.5">
-              {u.referral_count || 0} referred
+              {u.referral_count || 0}{' '}
+              referred
               {u.referral_earnings > 0 &&
                 ` · $${u.referral_earnings} earned`}
             </p>
 
             {u.referred_by && (
               <p className="text-gray-400 text-[10px] mt-0.5">
-                From: {u.referred_by.full_name || u.referred_by.email || '-'}
+                From:{' '}
+                {u.referred_by
+                  .full_name ||
+                  u.referred_by
+                    .email ||
+                  '-'}
               </p>
             )}
           </div>
 
+          {/* BANK */}
           <div className="bg-gray-50 rounded-lg p-2.5">
-            <span className="text-gray-400">Bank Account</span>
+            <span className="text-gray-400">
+              Bank Account
+            </span>
 
-            {u.bank_name || u.bank_account_number ? (
+            {u.bank_name ||
+            u.bank_account_number ? (
               <>
                 <p className="text-gray-800 font-medium text-[11px]">
-                  {u.bank_name || '-'}
+                  {u.bank_name ||
+                    '-'}
                 </p>
 
                 <p className="text-gray-400 text-[10px] mt-0.5">
-                  {u.bank_account_holder} · {u.bank_account_number}
-                  {u.bank_ifsc ? ` · ${u.bank_ifsc}` : ''}
+                  {u.bank_account_holder}{' '}
+                  ·{' '}
+                  {u.bank_account_number}
+                  {u.bank_ifsc
+                    ? ` · ${u.bank_ifsc}`
+                    : ''}
                 </p>
               </>
             ) : (
-              <p className="text-gray-800 font-medium">-</p>
+              <p className="text-gray-800 font-medium">
+                -
+              </p>
             )}
           </div>
         </div>
 
+        {/* TOGGLES */}
         <div className="flex items-center gap-2 flex-wrap pt-2 border-t border-gray-100">
           <button
-            onClick={() => handleToggle('trading_enabled')}
+            onClick={() =>
+              handleToggle(
+                'trading_enabled'
+              )
+            }
             disabled={loading}
             className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 ${
               u.trading_enabled
@@ -487,11 +810,19 @@ function UserCard({ user: u, onRefresh }) {
             ) : (
               <ToggleLeft className="w-4 h-4 text-gray-400" />
             )}
-            Trading {u.trading_enabled ? 'ON' : 'OFF'}
+
+            Trading{' '}
+            {u.trading_enabled
+              ? 'ON'
+              : 'OFF'}
           </button>
 
           <button
-            onClick={() => handleToggle('withdrawal_enabled')}
+            onClick={() =>
+              handleToggle(
+                'withdrawal_enabled'
+              )
+            }
             disabled={loading}
             className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 ${
               u.withdrawal_enabled
@@ -504,11 +835,19 @@ function UserCard({ user: u, onRefresh }) {
             ) : (
               <ToggleLeft className="w-4 h-4 text-gray-400" />
             )}
-            Withdraw {u.withdrawal_enabled ? 'ON' : 'OFF'}
+
+            Withdraw{' '}
+            {u.withdrawal_enabled
+              ? 'ON'
+              : 'OFF'}
           </button>
 
           <button
-            onClick={() => handleToggle('premium_enabled')}
+            onClick={() =>
+              handleToggle(
+                'premium_enabled'
+              )
+            }
             disabled={loading}
             className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 ${
               u.premium_enabled
@@ -523,13 +862,20 @@ function UserCard({ user: u, onRefresh }) {
                   : 'text-gray-400'
               }`}
             />
-            Premium {u.premium_enabled ? 'ON' : 'OFF'}
+
+            Premium{' '}
+            {u.premium_enabled
+              ? 'ON'
+              : 'OFF'}
           </button>
         </div>
 
+        {/* BALANCE ACTIONS */}
         <div className="flex items-center gap-2 flex-wrap pt-2 border-t border-gray-100">
           <button
-            onClick={() => setDepositDialog(true)}
+            onClick={() =>
+              setDepositDialog(true)
+            }
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-emerald-50 hover:bg-emerald-100 text-emerald-700 transition-colors"
           >
             <Banknote className="w-4 h-4" />
@@ -537,7 +883,9 @@ function UserCard({ user: u, onRefresh }) {
           </button>
 
           <button
-            onClick={() => setWithdrawDialog(true)}
+            onClick={() =>
+              setWithdrawDialog(true)
+            }
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-red-50 hover:bg-red-100 text-red-700 transition-colors"
           >
             <Wallet className="w-4 h-4" />
@@ -545,7 +893,9 @@ function UserCard({ user: u, onRefresh }) {
           </button>
 
           <button
-            onClick={() => setProfitDialog(true)}
+            onClick={() =>
+              setProfitDialog(true)
+            }
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-blue-50 hover:bg-blue-100 text-blue-700 transition-colors"
           >
             <HandCoins className="w-4 h-4" />
@@ -553,15 +903,47 @@ function UserCard({ user: u, onRefresh }) {
           </button>
 
           <button
-            onClick={() => setBalanceDialog(true)}
+            onClick={() =>
+              setBalanceDialog(true)
+            }
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors"
           >
             <DollarSign className="w-4 h-4 text-sky-500" />
             Balance
           </button>
 
+          {/* FREEZE */}
           <button
-            onClick={() => setCreditDialog(true)}
+            onClick={() =>
+              setFreezeDialog(true)
+            }
+            disabled={
+              availableBalance <= 0
+            }
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-blue-50 hover:bg-blue-100 text-blue-700 transition-colors disabled:opacity-40"
+          >
+            <Snowflake className="w-4 h-4" />
+            Freeze
+          </button>
+
+          {/* UNFREEZE */}
+          <button
+            onClick={() =>
+              setUnfreezeDialog(true)
+            }
+            disabled={
+              frozenBalance <= 0
+            }
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-amber-50 hover:bg-amber-100 text-amber-700 transition-colors disabled:opacity-40"
+          >
+            <Unlock className="w-4 h-4" />
+            Unfreeze
+          </button>
+
+          <button
+            onClick={() =>
+              setCreditDialog(true)
+            }
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors"
           >
             <Scale className="w-4 h-4 text-cyan-500" />
@@ -569,7 +951,11 @@ function UserCard({ user: u, onRefresh }) {
           </button>
 
           <button
-            onClick={() => setLoginPasswordDialog(true)}
+            onClick={() =>
+              setLoginPasswordDialog(
+                true
+              )
+            }
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors"
           >
             <Lock className="w-4 h-4 text-violet-500" />
@@ -577,7 +963,11 @@ function UserCard({ user: u, onRefresh }) {
           </button>
 
           <button
-            onClick={() => setWithdrawPasswordDialog(true)}
+            onClick={() =>
+              setWithdrawPasswordDialog(
+                true
+              )
+            }
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors"
           >
             <KeyRound className="w-4 h-4 text-amber-500" />
@@ -586,9 +976,15 @@ function UserCard({ user: u, onRefresh }) {
         </div>
       </div>
 
+      {/* =====================================================
+          BALANCE DIALOG
+      ===================================================== */}
+
       <Dialog
         open={balanceDialog}
-        onClose={() => setBalanceDialog(false)}
+        onClose={() =>
+          setBalanceDialog(false)
+        }
         title="Adjust Balance"
       >
         <div className="space-y-4">
@@ -599,9 +995,14 @@ function UserCard({ user: u, onRefresh }) {
 
             <div className="flex gap-2">
               <button
-                onClick={() => setBalanceAction('add')}
+                onClick={() =>
+                  setBalanceAction(
+                    'add'
+                  )
+                }
                 className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${
-                  balanceAction === 'add'
+                  balanceAction ===
+                  'add'
                     ? 'bg-emerald-50 border-emerald-200 text-emerald-600'
                     : 'bg-gray-50 border-gray-200 text-gray-400'
                 }`}
@@ -610,9 +1011,14 @@ function UserCard({ user: u, onRefresh }) {
               </button>
 
               <button
-                onClick={() => setBalanceAction('deduct')}
+                onClick={() =>
+                  setBalanceAction(
+                    'deduct'
+                  )
+                }
                 className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${
-                  balanceAction === 'deduct'
+                  balanceAction ===
+                  'deduct'
                     ? 'bg-red-50 border-red-200 text-red-600'
                     : 'bg-gray-50 border-gray-200 text-gray-400'
                 }`}
@@ -629,26 +1035,251 @@ function UserCard({ user: u, onRefresh }) {
 
             <input
               type="number"
+              min="0"
+              step="0.01"
               value={balanceAmount}
-              onChange={(e) => setBalanceAmount(e.target.value)}
+              onChange={(e) =>
+                setBalanceAmount(
+                  e.target.value
+                )
+              }
               placeholder="0.00"
               className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
             />
+
+            {balanceAction ===
+              'deduct' && (
+              <p className="text-gray-400 text-[11px] mt-1">
+                Available balance:{' '}
+                {formatCurrency(
+                  availableBalance
+                )}
+              </p>
+            )}
           </div>
 
           <button
             onClick={handleBalance}
-            disabled={loading || !balanceAmount}
+            disabled={
+              loading ||
+              !balanceAmount
+            }
             className="w-full py-2.5 rounded-lg text-sm font-semibold bg-sky-500 hover:bg-sky-600 text-white transition-colors disabled:opacity-50"
           >
-            {loading ? 'Processing...' : 'Confirm'}
+            {loading
+              ? 'Processing...'
+              : 'Confirm'}
           </button>
         </div>
       </Dialog>
 
+      {/* =====================================================
+          FREEZE DIALOG
+      ===================================================== */}
+
+      <Dialog
+        open={freezeDialog}
+        onClose={() => {
+          setFreezeDialog(false);
+          setFreezeAmount('');
+        }}
+        title="Freeze User Balance"
+      >
+        <div className="space-y-4">
+          <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
+            <div className="flex items-start gap-3">
+              <Snowflake className="w-5 h-5 text-blue-500 flex-shrink-0" />
+
+              <div>
+                <p className="text-blue-700 text-sm font-semibold">
+                  Freeze Amount
+                </p>
+
+                <p className="text-blue-600 text-xs mt-1">
+                  Frozen funds will remain in the
+                  user's total balance but will not
+                  be available for trading or
+                  withdrawal.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div className="bg-gray-50 rounded-lg p-3">
+              <p className="text-gray-400 text-[10px] uppercase">
+                Total Balance
+              </p>
+
+              <p className="text-gray-900 font-semibold text-sm mt-1">
+                {formatCurrency(
+                  totalBalance
+                )}
+              </p>
+            </div>
+
+            <div className="bg-emerald-50 rounded-lg p-3">
+              <p className="text-emerald-600 text-[10px] uppercase">
+                Available
+              </p>
+
+              <p className="text-emerald-700 font-semibold text-sm mt-1">
+                {formatCurrency(
+                  availableBalance
+                )}
+              </p>
+            </div>
+          </div>
+
+          <div>
+            <label className="text-gray-400 text-xs font-medium uppercase tracking-wider mb-2 block">
+              Freeze Amount (USDT)
+            </label>
+
+            <input
+              type="number"
+              min="0"
+              max={availableBalance}
+              step="0.01"
+              value={freezeAmount}
+              onChange={(e) =>
+                setFreezeAmount(
+                  e.target.value
+                )
+              }
+              placeholder="0.00"
+              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+
+            <p className="text-gray-400 text-[11px] mt-1">
+              Maximum:{' '}
+              {formatCurrency(
+                availableBalance
+              )}
+            </p>
+          </div>
+
+          <button
+            onClick={handleFreeze}
+            disabled={
+              loading ||
+              !freezeAmount
+            }
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold bg-blue-500 hover:bg-blue-600 text-white transition-colors disabled:opacity-50"
+          >
+            {loading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Snowflake className="w-4 h-4" />
+            )}
+
+            {loading
+              ? 'Freezing...'
+              : 'Freeze Amount'}
+          </button>
+        </div>
+      </Dialog>
+
+      {/* =====================================================
+          UNFREEZE DIALOG
+      ===================================================== */}
+
+      <Dialog
+        open={unfreezeDialog}
+        onClose={() => {
+          setUnfreezeDialog(false);
+          setUnfreezeAmount('');
+        }}
+        title="Unfreeze User Balance"
+      >
+        <div className="space-y-4">
+          <div className="bg-amber-50 border border-amber-100 rounded-xl p-4">
+            <div className="flex items-start gap-3">
+              <Unlock className="w-5 h-5 text-amber-500 flex-shrink-0" />
+
+              <div>
+                <p className="text-amber-700 text-sm font-semibold">
+                  Unfreeze Amount
+                </p>
+
+                <p className="text-amber-600 text-xs mt-1">
+                  Unfreezing will make the selected
+                  amount available again for the user.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-blue-50 rounded-lg p-3">
+            <p className="text-blue-500 text-[10px] uppercase">
+              Currently Frozen
+            </p>
+
+            <p className="text-blue-700 font-semibold text-lg mt-1">
+              {formatCurrency(
+                frozenBalance
+              )}
+            </p>
+          </div>
+
+          <div>
+            <label className="text-gray-400 text-xs font-medium uppercase tracking-wider mb-2 block">
+              Unfreeze Amount (USDT)
+            </label>
+
+            <input
+              type="number"
+              min="0"
+              max={frozenBalance}
+              step="0.01"
+              value={unfreezeAmount}
+              onChange={(e) =>
+                setUnfreezeAmount(
+                  e.target.value
+                )
+              }
+              placeholder="0.00"
+              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+            />
+
+            <p className="text-gray-400 text-[11px] mt-1">
+              Maximum:{' '}
+              {formatCurrency(
+                frozenBalance
+              )}
+            </p>
+          </div>
+
+          <button
+            onClick={handleUnfreeze}
+            disabled={
+              loading ||
+              !unfreezeAmount
+            }
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold bg-amber-500 hover:bg-amber-600 text-white transition-colors disabled:opacity-50"
+          >
+            {loading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Unlock className="w-4 h-4" />
+            )}
+
+            {loading
+              ? 'Unfreezing...'
+              : 'Unfreeze Amount'}
+          </button>
+        </div>
+      </Dialog>
+
+      {/* =====================================================
+          LOGIN PASSWORD
+      ===================================================== */}
+
       <Dialog
         open={loginPasswordDialog}
-        onClose={() => setLoginPasswordDialog(false)}
+        onClose={() =>
+          setLoginPasswordDialog(false)
+        }
         title="Set Login Password"
       >
         <div className="space-y-4">
@@ -660,25 +1291,44 @@ function UserCard({ user: u, onRefresh }) {
             <input
               type="password"
               value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
+              onChange={(e) =>
+                setNewPassword(
+                  e.target.value
+                )
+              }
               placeholder="Enter new login password"
               className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
             />
           </div>
 
           <button
-            onClick={handleLoginPassword}
-            disabled={loading || !newPassword}
+            onClick={
+              handleLoginPassword
+            }
+            disabled={
+              loading ||
+              !newPassword
+            }
             className="w-full py-2.5 rounded-lg text-sm font-semibold bg-sky-500 hover:bg-sky-600 text-white transition-colors disabled:opacity-50"
           >
-            {loading ? 'Setting...' : 'Set Login Password'}
+            {loading
+              ? 'Setting...'
+              : 'Set Login Password'}
           </button>
         </div>
       </Dialog>
 
+      {/* =====================================================
+          WITHDRAWAL PASSWORD
+      ===================================================== */}
+
       <Dialog
         open={withdrawPasswordDialog}
-        onClose={() => setWithdrawPasswordDialog(false)}
+        onClose={() =>
+          setWithdrawPasswordDialog(
+            false
+          )
+        }
         title="Set Withdrawal Password"
       >
         <div className="space-y-4">
@@ -690,25 +1340,42 @@ function UserCard({ user: u, onRefresh }) {
             <input
               type="password"
               value={withdrawPassword}
-              onChange={(e) => setWithdrawPassword(e.target.value)}
+              onChange={(e) =>
+                setWithdrawPassword(
+                  e.target.value
+                )
+              }
               placeholder="Enter new withdrawal password"
               className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
             />
           </div>
 
           <button
-            onClick={handleWithdrawPassword}
-            disabled={loading || !withdrawPassword}
+            onClick={
+              handleWithdrawPassword
+            }
+            disabled={
+              loading ||
+              !withdrawPassword
+            }
             className="w-full py-2.5 rounded-lg text-sm font-semibold bg-sky-500 hover:bg-sky-600 text-white transition-colors disabled:opacity-50"
           >
-            {loading ? 'Setting...' : 'Set Withdrawal Password'}
+            {loading
+              ? 'Setting...'
+              : 'Set Withdrawal Password'}
           </button>
         </div>
       </Dialog>
 
+      {/* =====================================================
+          CREDIT SCORE
+      ===================================================== */}
+
       <Dialog
         open={creditDialog}
-        onClose={() => setCreditDialog(false)}
+        onClose={() =>
+          setCreditDialog(false)
+        }
         title="Set Credit Score"
       >
         <div className="space-y-4">
@@ -720,7 +1387,11 @@ function UserCard({ user: u, onRefresh }) {
             <input
               type="number"
               value={creditScore}
-              onChange={(e) => setCreditScore(e.target.value)}
+              onChange={(e) =>
+                setCreditScore(
+                  e.target.value
+                )
+              }
               placeholder="100"
               className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
             />
@@ -733,41 +1404,75 @@ function UserCard({ user: u, onRefresh }) {
 
             <div className="space-y-1 text-xs">
               <div className="flex justify-between">
-                <span className="text-cyan-600">Platinum</span>
-                <span className="text-gray-400">&ge; 800</span>
+                <span className="text-cyan-600">
+                  Platinum
+                </span>
+
+                <span className="text-gray-400">
+                  &ge; 800
+                </span>
               </div>
 
               <div className="flex justify-between">
-                <span className="text-sky-600">VIP</span>
-                <span className="text-gray-400">&ge; 600</span>
+                <span className="text-sky-600">
+                  VIP
+                </span>
+
+                <span className="text-gray-400">
+                  &ge; 600
+                </span>
               </div>
 
               <div className="flex justify-between">
-                <span className="text-emerald-600">Trusted</span>
-                <span className="text-gray-400">&ge; 400</span>
+                <span className="text-emerald-600">
+                  Trusted
+                </span>
+
+                <span className="text-gray-400">
+                  &ge; 400
+                </span>
               </div>
 
               <div className="flex justify-between">
-                <span className="text-blue-600">Regular</span>
-                <span className="text-gray-400">&ge; 200</span>
+                <span className="text-blue-600">
+                  Regular
+                </span>
+
+                <span className="text-gray-400">
+                  &ge; 200
+                </span>
               </div>
 
               <div className="flex justify-between">
-                <span className="text-gray-500">New</span>
-                <span className="text-gray-400">&lt; 200</span>
+                <span className="text-gray-500">
+                  New
+                </span>
+
+                <span className="text-gray-400">
+                  &lt; 200
+                </span>
               </div>
             </div>
           </div>
 
           <button
             onClick={handleCredit}
-            disabled={loading || creditScore === ''}
+            disabled={
+              loading ||
+              creditScore === ''
+            }
             className="w-full py-2.5 rounded-lg text-sm font-semibold bg-sky-500 hover:bg-sky-600 text-white transition-colors disabled:opacity-50"
           >
-            {loading ? 'Updating...' : 'Set Credit Score'}
+            {loading
+              ? 'Updating...'
+              : 'Set Credit Score'}
           </button>
         </div>
       </Dialog>
+
+      {/* =====================================================
+          DEPOSIT
+      ===================================================== */}
 
       {depositDialog && (
         <AmountDialog
@@ -775,14 +1480,25 @@ function UserCard({ user: u, onRefresh }) {
           label="Amount (USDT)"
           icon={Banknote}
           actionLabel="Add Deposit"
-          onClose={() => setDepositDialog(false)}
+          onClose={() =>
+            setDepositDialog(false)
+          }
           onSubmit={async (amount) => {
-            await api.post(`/users/${userId}/add-deposit`, { amount });
+            await api.post(
+              `/users/${userId}/add-deposit`,
+              { amount }
+            );
+
             setDepositDialog(false);
+
             await onRefresh();
           }}
         />
       )}
+
+      {/* =====================================================
+          WITHDRAWAL
+      ===================================================== */}
 
       {withdrawDialog && (
         <AmountDialog
@@ -790,14 +1506,25 @@ function UserCard({ user: u, onRefresh }) {
           label="Amount (USDT)"
           icon={Wallet}
           actionLabel="Add Withdrawal"
-          onClose={() => setWithdrawDialog(false)}
+          onClose={() =>
+            setWithdrawDialog(false)
+          }
           onSubmit={async (amount) => {
-            await api.post(`/users/${userId}/add-withdrawal`, { amount });
+            await api.post(
+              `/users/${userId}/add-withdrawal`,
+              { amount }
+            );
+
             setWithdrawDialog(false);
+
             await onRefresh();
           }}
         />
       )}
+
+      {/* =====================================================
+          PROFIT
+      ===================================================== */}
 
       {profitDialog && (
         <AmountDialog
@@ -805,10 +1532,17 @@ function UserCard({ user: u, onRefresh }) {
           label="Amount (USDT)"
           icon={HandCoins}
           actionLabel="Add Profit"
-          onClose={() => setProfitDialog(false)}
+          onClose={() =>
+            setProfitDialog(false)
+          }
           onSubmit={async (amount) => {
-            await api.post(`/users/${userId}/add-profit`, { amount });
+            await api.post(
+              `/users/${userId}/add-profit`,
+              { amount }
+            );
+
             setProfitDialog(false);
+
             await onRefresh();
           }}
         />
@@ -817,18 +1551,38 @@ function UserCard({ user: u, onRefresh }) {
   );
 }
 
-function VerifyTab({ onRefresh }) {
-  const [subTab, setSubTab] = useState('pending');
-  const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
+/* =========================================================
+   VERIFY TAB
+========================================================= */
+
+function VerifyTab({
+  onRefresh,
+}) {
+  const [subTab, setSubTab] =
+    useState('pending');
+
+  const [users, setUsers] =
+    useState([]);
+
+  const [loading, setLoading] =
+    useState(true);
 
   const counts = {
-    pending: users.filter((u) => u.identity_status === 'pending').length,
+    pending: users.filter(
+      (u) =>
+        u.identity_status ===
+        'pending'
+    ).length,
+
     rejected: users.filter(
       (u) =>
-        u.identity_status === 'unverified' &&
+        (u.identity_status ===
+          'unverified' ||
+          u.identity_status ===
+            'rejected') &&
         u.identity_submitted_at
     ).length,
+
     all: users.length,
   };
 
@@ -836,11 +1590,17 @@ function VerifyTab({ onRefresh }) {
     setLoading(true);
 
     try {
-      const { data } = await api.get('/admin/users');
+      const { data } =
+        await api.get(
+          '/admin/users'
+        );
+
       setUsers(
         Array.isArray(data)
           ? data
-          : Array.isArray(data.users)
+          : Array.isArray(
+              data.users
+            )
           ? data.users
           : []
       );
@@ -855,38 +1615,69 @@ function VerifyTab({ onRefresh }) {
     fetchUsers();
   }, []);
 
-  async function handleVerify(id, status) {
+  async function handleVerify(
+    id,
+    status
+  ) {
     try {
-      await api.post(`/users/${id}/verify`, { status });
+      await api.post(
+        `/users/${id}/verify`,
+        { status }
+      );
+
       await fetchUsers();
       await onRefresh();
     } catch (err) {
       console.error(err);
+
+      alert(
+        err?.response?.data
+          ?.message ||
+          'Verification action failed.'
+      );
     }
   }
 
-  const filtered = users.filter((u) => {
-    if (subTab === 'pending') {
-      return u.identity_status === 'pending';
-    }
+  const filtered = users.filter(
+    (u) => {
+      if (
+        subTab === 'pending'
+      ) {
+        return (
+          u.identity_status ===
+          'pending'
+        );
+      }
 
-    if (subTab === 'rejected') {
-      return (
-        u.identity_status === 'unverified' &&
-        u.identity_submitted_at
-      );
-    }
+      if (
+        subTab === 'rejected'
+      ) {
+        return (
+          (u.identity_status ===
+            'unverified' ||
+            u.identity_status ===
+              'rejected') &&
+          u.identity_submitted_at
+        );
+      }
 
-    return true;
-  });
+      return true;
+    }
+  );
 
   return (
     <div className="space-y-4">
       <div className="flex gap-2 flex-wrap">
-        {['pending', 'rejected', 'all'].map((tab) => (
+        {[
+          'pending',
+          'rejected',
+          'all',
+        ].map((tab) => (
           <button
             key={tab}
-            onClick={() => setSubTab(tab)}
+            onClick={() =>
+              setSubTab(tab)
+            }
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors capitalize ${
               subTab === tab
                 ? 'bg-sky-50 text-sky-600 border border-sky-200'
@@ -902,18 +1693,23 @@ function VerifyTab({ onRefresh }) {
         <div className="flex justify-center py-12">
           <div className="w-8 h-8 border-4 border-sky-200 border-t-sky-500 rounded-full animate-spin" />
         </div>
-      ) : filtered.length === 0 ? (
+      ) : filtered.length ===
+        0 ? (
         <div className="text-center py-12">
           <BadgeCheck className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+
           <p className="text-gray-400 text-sm">
-            No verification requests
+            No verification
+            requests
           </p>
         </div>
       ) : (
         <div className="space-y-3">
           {filtered.map((u) => (
             <div
-              key={u._id || u.id}
+              key={
+                u._id || u.id
+              }
               className="bg-white rounded-xl shadow-sm border border-sky-100 p-4"
             >
               <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -925,14 +1721,18 @@ function VerifyTab({ onRefresh }) {
 
                     <span
                       className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                        u.identity_status === 'verified'
+                        u.identity_status ===
+                        'verified'
                           ? 'bg-emerald-50 text-emerald-600'
-                          : u.identity_status === 'pending'
+                          : u.identity_status ===
+                            'pending'
                           ? 'bg-amber-50 text-amber-600'
                           : 'bg-red-50 text-red-600'
                       }`}
                     >
-                      {u.identity_status}
+                      {
+                        u.identity_status
+                      }
                     </span>
                   </div>
 
@@ -940,15 +1740,19 @@ function VerifyTab({ onRefresh }) {
                     {u.email}
                   </p>
 
-                  {(u.dob || u.date_of_birth) && (
+                  {(u.dob ||
+                    u.date_of_birth) && (
                     <p className="text-gray-400 text-xs">
-                      DOB: {u.dob || u.date_of_birth}
+                      DOB:{' '}
+                      {u.dob ||
+                        u.date_of_birth}
                     </p>
                   )}
 
                   {u.mobile && (
                     <p className="text-gray-400 text-xs">
-                      Mobile: {u.mobile}
+                      Mobile:{' '}
+                      {u.mobile}
                     </p>
                   )}
                 </div>
@@ -956,7 +1760,11 @@ function VerifyTab({ onRefresh }) {
                 <div className="flex gap-2">
                   <button
                     onClick={() =>
-                      handleVerify(u._id || u.id, 'verified')
+                      handleVerify(
+                        u._id ||
+                          u.id,
+                        'verified'
+                      )
                     }
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors"
                   >
@@ -966,7 +1774,11 @@ function VerifyTab({ onRefresh }) {
 
                   <button
                     onClick={() =>
-                      handleVerify(u._id || u.id, 'unverified')
+                      handleVerify(
+                        u._id ||
+                          u.id,
+                        'rejected'
+                      )
                     }
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
                   >
@@ -983,30 +1795,51 @@ function VerifyTab({ onRefresh }) {
   );
 }
 
+/* =========================================================
+   TRANSACTIONS TAB
+========================================================= */
+
 function TransactionsTab() {
-  const [subTab, setSubTab] = useState('pending');
-  const [transactions, setTransactions] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [subTab, setSubTab] =
+    useState('pending');
+
+  const [transactions, setTransactions] =
+    useState([]);
+
+  const [loading, setLoading] =
+    useState(true);
 
   const counts = {
-    pending: transactions.filter((t) => t.status === 'pending').length,
-    completed: transactions.filter(
+    pending: transactions.filter(
       (t) =>
-        t.status === 'completed' ||
-        t.status === 'approved'
+        t.status === 'pending'
     ).length,
+
+    completed:
+      transactions.filter(
+        (t) =>
+          t.status ===
+            'completed' ||
+          t.status ===
+            'approved'
+      ).length,
   };
 
   async function fetchTransactions() {
     setLoading(true);
 
     try {
-      const { data } = await api.get('/transactions/all');
+      const { data } =
+        await api.get(
+          '/transactions/all'
+        );
 
       setTransactions(
         Array.isArray(data)
           ? data
-          : Array.isArray(data.transactions)
+          : Array.isArray(
+              data.transactions
+            )
           ? data.transactions
           : []
       );
@@ -1021,40 +1854,70 @@ function TransactionsTab() {
     fetchTransactions();
   }, []);
 
-  async function handleApprove(id) {
+  async function handleApprove(
+    id
+  ) {
     try {
-      await api.post(`/transactions/${id}/approve`);
+      await api.post(
+        `/transactions/${id}/approve`
+      );
+
       await fetchTransactions();
     } catch (err) {
       console.error(err);
+
+      alert(
+        err?.response?.data
+          ?.message ||
+          'Approval failed.'
+      );
     }
   }
 
-  async function handleReject(id) {
+  async function handleReject(
+    id
+  ) {
     try {
-      await api.post(`/transactions/${id}/reject`);
+      await api.post(
+        `/transactions/${id}/reject`
+      );
+
       await fetchTransactions();
     } catch (err) {
       console.error(err);
+
+      alert(
+        err?.response?.data
+          ?.message ||
+          'Reject failed.'
+      );
     }
   }
 
-  const filtered = transactions.filter((t) => {
-    if (subTab === 'pending') {
-      return t.status === 'pending';
-    }
+  const filtered =
+    transactions.filter((t) => {
+      if (
+        subTab === 'pending'
+      ) {
+        return (
+          t.status === 'pending'
+        );
+      }
 
-    return (
-      t.status === 'completed' ||
-      t.status === 'approved'
-    );
-  });
+      return (
+        t.status ===
+          'completed' ||
+        t.status === 'approved'
+      );
+    });
 
   return (
     <div className="space-y-4">
       <div className="flex gap-2">
         <button
-          onClick={() => setSubTab('pending')}
+          onClick={() =>
+            setSubTab('pending')
+          }
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
             subTab === 'pending'
               ? 'bg-sky-50 text-sky-600 border border-sky-200'
@@ -1065,9 +1928,12 @@ function TransactionsTab() {
         </button>
 
         <button
-          onClick={() => setSubTab('completed')}
+          onClick={() =>
+            setSubTab('completed')
+          }
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-            subTab === 'completed'
+            subTab ===
+            'completed'
               ? 'bg-sky-50 text-sky-600 border border-sky-200'
               : 'bg-gray-100 text-gray-400 hover:text-gray-600 border border-transparent'
           }`}
@@ -1080,9 +1946,11 @@ function TransactionsTab() {
         <div className="flex justify-center py-12">
           <div className="w-8 h-8 border-4 border-sky-200 border-t-sky-500 rounded-full animate-spin" />
         </div>
-      ) : filtered.length === 0 ? (
+      ) : filtered.length ===
+        0 ? (
         <div className="text-center py-12">
           <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+
           <p className="text-gray-400 text-sm">
             No transactions
           </p>
@@ -1096,21 +1964,27 @@ function TransactionsTab() {
                   <th className="text-left p-3 text-gray-400 text-xs font-medium uppercase tracking-wider">
                     User
                   </th>
+
                   <th className="text-left p-3 text-gray-400 text-xs font-medium uppercase tracking-wider">
                     Type
                   </th>
+
                   <th className="text-left p-3 text-gray-400 text-xs font-medium uppercase tracking-wider">
                     Amount
                   </th>
+
                   <th className="text-left p-3 text-gray-400 text-xs font-medium uppercase tracking-wider">
                     Method
                   </th>
+
                   <th className="text-left p-3 text-gray-400 text-xs font-medium uppercase tracking-wider">
                     Status
                   </th>
+
                   <th className="text-left p-3 text-gray-400 text-xs font-medium uppercase tracking-wider">
                     Date
                   </th>
+
                   <th className="text-right p-3 text-gray-400 text-xs font-medium uppercase tracking-wider">
                     Actions
                   </th>
@@ -1118,117 +1992,166 @@ function TransactionsTab() {
               </thead>
 
               <tbody className="divide-y divide-gray-50">
-                {filtered.map((t) => (
-                  <tr
-                    key={t._id || t.id}
-                    className="hover:bg-gray-50 transition-colors"
-                  >
-                    <td className="p-3 text-gray-800 text-xs">
-                      {t.user?.full_name ||
-                        t.user_name ||
-                        t.user_email ||
-                        'Unknown'}
-                    </td>
+                {filtered.map(
+                  (t) => (
+                    <tr
+                      key={
+                        t._id ||
+                        t.id
+                      }
+                      className="hover:bg-gray-50 transition-colors"
+                    >
+                      <td className="p-3 text-gray-800 text-xs">
+                        {t.user
+                          ?.full_name ||
+                          t.user_name ||
+                          t.user_email ||
+                          'Unknown'}
+                      </td>
 
-                    <td className="p-3">
-                      <span
-                        className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                          t.type === 'deposit'
-                            ? 'bg-emerald-50 text-emerald-600'
-                            : 'bg-red-50 text-red-600'
-                        }`}
-                      >
-                        {t.type}
-                      </span>
-                    </td>
-
-                    <td className="p-3 text-gray-800 text-xs font-medium">
-                      {formatCurrency(t.amount)}
-
-                      {t.amount_inr > 0 && (
-                        <span className="text-gray-400 font-normal">
-                          {' '}
-                          · ₹{t.amount_inr}
+                      <td className="p-3">
+                        <span
+                          className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                            t.type ===
+                            'deposit'
+                              ? 'bg-emerald-50 text-emerald-600'
+                              : 'bg-red-50 text-red-600'
+                          }`}
+                        >
+                          {t.type}
                         </span>
-                      )}
-                    </td>
+                      </td>
 
-                    <td className="p-3">
-                      <p className="text-gray-400 text-xs">
-                        {t.method || '-'}
-                      </p>
+                      <td className="p-3 text-gray-800 text-xs font-medium">
+                        {formatCurrency(
+                          t.amount
+                        )}
 
-                      {t.tx_hash && (
-                        <p className="text-[10px] text-gray-300 font-mono mt-0.5">
-                          UTR: {t.tx_hash}
+                        {t.amount_inr >
+                          0 && (
+                          <span className="text-gray-400 font-normal">
+                            {' '}
+                            · ₹
+                            {
+                              t.amount_inr
+                            }
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="p-3">
+                        <p className="text-gray-400 text-xs">
+                          {t.method ||
+                            '-'}
                         </p>
-                      )}
 
-                      {t.bank_details && (
-                        <div className="text-[10px] text-gray-400 mt-0.5 leading-relaxed">
-                          <p className="text-gray-500">
-                            {t.bank_details.bank_name}
+                        {t.tx_hash && (
+                          <p className="text-[10px] text-gray-300 font-mono mt-0.5">
+                            UTR:{' '}
+                            {
+                              t.tx_hash
+                            }
                           </p>
+                        )}
 
-                          <p>
-                            {t.bank_details.account_holder} ·{' '}
-                            {t.bank_details.account_number}
-                          </p>
-
-                          {t.bank_details.ifsc && (
-                            <p>
-                              IFSC: {t.bank_details.ifsc}
+                        {t.bank_details && (
+                          <div className="text-[10px] text-gray-400 mt-0.5 leading-relaxed">
+                            <p className="text-gray-500">
+                              {
+                                t
+                                  .bank_details
+                                  .bank_name
+                              }
                             </p>
-                          )}
-                        </div>
-                      )}
-                    </td>
 
-                    <td className="p-3">
-                      <span
-                        className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                          t.status === 'pending'
-                            ? 'bg-amber-50 text-amber-600'
-                            : 'bg-emerald-50 text-emerald-600'
-                        }`}
-                      >
-                        {t.status}
-                      </span>
-                    </td>
+                            <p>
+                              {
+                                t
+                                  .bank_details
+                                  .account_holder
+                              }{' '}
+                              ·{' '}
+                              {
+                                t
+                                  .bank_details
+                                  .account_number
+                              }
+                            </p>
 
-                    <td className="p-3 text-gray-400 text-xs">
-                      {t.createdAt
-                        ? formatDate(t.createdAt)
-                        : t.created_at
-                        ? formatDate(t.created_at)
-                        : '-'}
-                    </td>
+                            {t
+                              .bank_details
+                              .ifsc && (
+                              <p>
+                                IFSC:{' '}
+                                {
+                                  t
+                                    .bank_details
+                                    .ifsc
+                                }
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </td>
 
-                    <td className="p-3 text-right">
-                      {t.status === 'pending' && (
-                        <div className="flex gap-1.5 justify-end">
-                          <button
-                            onClick={() =>
-                              handleApprove(t._id || t.id)
-                            }
-                            className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors"
-                          >
-                            Approve
-                          </button>
+                      <td className="p-3">
+                        <span
+                          className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                            t.status ===
+                            'pending'
+                              ? 'bg-amber-50 text-amber-600'
+                              : 'bg-emerald-50 text-emerald-600'
+                          }`}
+                        >
+                          {t.status}
+                        </span>
+                      </td>
 
-                          <button
-                            onClick={() =>
-                              handleReject(t._id || t.id)
-                            }
-                            className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
-                          >
-                            Reject
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                      <td className="p-3 text-gray-400 text-xs">
+                        {t.createdAt
+                          ? formatDate(
+                              t.createdAt
+                            )
+                          : t.created_at
+                          ? formatDate(
+                              t.created_at
+                            )
+                          : '-'}
+                      </td>
+
+                      <td className="p-3 text-right">
+                        {t.status ===
+                          'pending' && (
+                          <div className="flex gap-1.5 justify-end">
+                            <button
+                              onClick={() =>
+                                handleApprove(
+                                  t._id ||
+                                    t.id
+                                )
+                              }
+                              className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors"
+                            >
+                              Approve
+                            </button>
+
+                            <button
+                              onClick={() =>
+                                handleReject(
+                                  t._id ||
+                                    t.id
+                                )
+                              }
+                              className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                )}
               </tbody>
             </table>
           </div>
@@ -1238,23 +2161,41 @@ function TransactionsTab() {
   );
 }
 
+/* =========================================================
+   TRADE DATA TAB
+========================================================= */
+
 function TradeDataTab() {
-  const [trades, setTrades] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [savingId, setSavingId] = useState(null);
-  const [filter, setFilter] = useState('all');
-  const [query, setQuery] = useState('');
+  const [trades, setTrades] =
+    useState([]);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [savingId, setSavingId] =
+    useState(null);
+
+  const [filter, setFilter] =
+    useState('all');
+
+  const [query, setQuery] =
+    useState('');
 
   async function fetchTrades() {
     setLoading(true);
 
     try {
-      const { data } = await api.get('/admin/trades');
+      const { data } =
+        await api.get(
+          '/admin/trades'
+        );
 
       setTrades(
         Array.isArray(data)
           ? data
-          : Array.isArray(data.trades)
+          : Array.isArray(
+              data.trades
+            )
           ? data.trades
           : []
       );
@@ -1269,17 +2210,27 @@ function TradeDataTab() {
     fetchTrades();
   }, []);
 
-  async function handleOutcome(id, outcome) {
+  async function handleOutcome(
+    id,
+    outcome
+  ) {
     setSavingId(id);
 
     try {
-      await api.post(`/trades/${id}/admin-outcome`, {
-        outcome,
-      });
+      await api.post(
+        `/trades/${id}/admin-outcome`,
+        { outcome }
+      );
 
       await fetchTrades();
     } catch (err) {
       console.error(err);
+
+      alert(
+        err?.response?.data
+          ?.message ||
+          'Trade update failed.'
+      );
     } finally {
       setSavingId(null);
     }
@@ -1287,53 +2238,93 @@ function TradeDataTab() {
 
   const counts = {
     all: trades.length,
-    active: trades.filter((t) => t.status === 'active').length,
-    won: trades.filter((t) => t.status === 'won').length,
-    lost: trades.filter((t) => t.status === 'lost').length,
+
+    active: trades.filter(
+      (t) =>
+        t.status === 'active'
+    ).length,
+
+    won: trades.filter(
+      (t) =>
+        t.status === 'won'
+    ).length,
+
+    lost: trades.filter(
+      (t) =>
+        t.status === 'lost'
+    ).length,
   };
 
-  const totalVolume = trades.reduce(
-    (sum, t) => sum + (t.amount || 0),
-    0
-  );
+  const totalVolume =
+    trades.reduce(
+      (sum, t) =>
+        sum +
+        (t.amount || 0),
+      0
+    );
 
-  const totalPL = trades.reduce(
-    (sum, t) => sum + (t.profit_loss || 0),
-    0
-  );
+  const totalPL =
+    trades.reduce(
+      (sum, t) =>
+        sum +
+        (t.profit_loss || 0),
+      0
+    );
 
-  const filtered = trades.filter((t) => {
-    if (filter !== 'all' && t.status !== filter) {
-      return false;
-    }
-
-    if (query) {
-      const q = query.toLowerCase();
-      const name = t.user_id?.full_name || '';
-      const email = t.user_email || '';
-
+  const filtered =
+    trades.filter((t) => {
       if (
-        !name.toLowerCase().includes(q) &&
-        !email.toLowerCase().includes(q)
+        filter !== 'all' &&
+        t.status !== filter
       ) {
         return false;
       }
-    }
 
-    return true;
-  });
+      if (query) {
+        const q =
+          query.toLowerCase();
 
-  const statusBadge = (status) => {
+        const name =
+          t.user_id
+            ?.full_name || '';
+
+        const email =
+          t.user_email || '';
+
+        if (
+          !name
+            .toLowerCase()
+            .includes(q) &&
+          !email
+            .toLowerCase()
+            .includes(q)
+        ) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+
+  const statusBadge = (
+    status
+  ) => {
     const map = {
-      active: 'bg-blue-50 text-blue-600',
-      won: 'bg-emerald-50 text-emerald-600',
-      lost: 'bg-red-50 text-red-600',
+      active:
+        'bg-blue-50 text-blue-600',
+
+      won:
+        'bg-emerald-50 text-emerald-600',
+
+      lost:
+        'bg-red-50 text-red-600',
     };
 
     return (
       <span
         className={`px-1.5 py-0.5 rounded text-[10px] font-medium capitalize ${
-          map[status] || 'bg-gray-50 text-gray-500'
+          map[status] ||
+          'bg-gray-50 text-gray-500'
         }`}
       >
         {status}
@@ -1360,7 +2351,9 @@ function TradeDataTab() {
           </p>
 
           <p className="text-gray-900 font-semibold text-xl">
-            {formatCurrency(totalVolume)}
+            {formatCurrency(
+              totalVolume
+            )}
           </p>
         </div>
 
@@ -1376,17 +2369,29 @@ function TradeDataTab() {
                 : 'text-red-600'
             }`}
           >
-            {totalPL >= 0 ? '+' : '-'}
-            {formatCurrency(Math.abs(totalPL))}
+            {totalPL >= 0
+              ? '+'
+              : '-'}
+
+            {formatCurrency(
+              Math.abs(totalPL)
+            )}
           </p>
         </div>
       </div>
 
       <div className="flex items-center gap-2 flex-wrap">
-        {['all', 'active', 'won', 'lost'].map((f) => (
+        {[
+          'all',
+          'active',
+          'won',
+          'lost',
+        ].map((f) => (
           <button
             key={f}
-            onClick={() => setFilter(f)}
+            onClick={() =>
+              setFilter(f)
+            }
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors capitalize ${
               filter === f
                 ? 'bg-sky-50 text-sky-600 border border-sky-200'
@@ -1404,7 +2409,11 @@ function TradeDataTab() {
         <input
           type="text"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) =>
+            setQuery(
+              e.target.value
+            )
+          }
           placeholder="Search by user email or name..."
           className="w-full bg-white border border-sky-100 rounded-lg pl-10 pr-4 py-2.5 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 placeholder:text-gray-400 shadow-sm"
         />
@@ -1414,9 +2423,11 @@ function TradeDataTab() {
         <div className="flex justify-center py-12">
           <div className="w-8 h-8 border-4 border-sky-200 border-t-sky-500 rounded-full animate-spin" />
         </div>
-      ) : filtered.length === 0 ? (
+      ) : filtered.length ===
+        0 ? (
         <div className="text-center py-12">
           <Database className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+
           <p className="text-gray-400 text-sm">
             No trades found
           </p>
@@ -1430,36 +2441,47 @@ function TradeDataTab() {
                   <th className="text-left p-3 text-gray-400 text-xs font-medium uppercase tracking-wider">
                     Date
                   </th>
+
                   <th className="text-left p-3 text-gray-400 text-xs font-medium uppercase tracking-wider">
                     User
                   </th>
+
                   <th className="text-left p-3 text-gray-400 text-xs font-medium uppercase tracking-wider">
                     Crypto
                   </th>
+
                   <th className="text-left p-3 text-gray-400 text-xs font-medium uppercase tracking-wider">
                     Direction
                   </th>
+
                   <th className="text-left p-3 text-gray-400 text-xs font-medium uppercase tracking-wider">
                     Amount
                   </th>
+
                   <th className="text-left p-3 text-gray-400 text-xs font-medium uppercase tracking-wider">
                     Entry
                   </th>
+
                   <th className="text-left p-3 text-gray-400 text-xs font-medium uppercase tracking-wider">
                     Exit
                   </th>
+
                   <th className="text-left p-3 text-gray-400 text-xs font-medium uppercase tracking-wider">
                     Duration
                   </th>
+
                   <th className="text-left p-3 text-gray-400 text-xs font-medium uppercase tracking-wider">
                     Profit %
                   </th>
+
                   <th className="text-left p-3 text-gray-400 text-xs font-medium uppercase tracking-wider">
                     P/L
                   </th>
+
                   <th className="text-left p-3 text-gray-400 text-xs font-medium uppercase tracking-wider">
                     Status
                   </th>
+
                   <th className="text-right p-3 text-gray-400 text-xs font-medium uppercase tracking-wider">
                     Control
                   </th>
@@ -1467,135 +2489,185 @@ function TradeDataTab() {
               </thead>
 
               <tbody className="divide-y divide-gray-50">
-                {filtered.map((t) => {
-                  const isWon = t.status === 'won';
-                  const isLost = t.status === 'lost';
-                  const id = t._id || t.id;
+                {filtered.map(
+                  (t) => {
+                    const isWon =
+                      t.status ===
+                      'won';
 
-                  return (
-                    <tr
-                      key={id}
-                      className="hover:bg-gray-50 transition-colors"
-                    >
-                      <td className="p-3 text-gray-400 text-xs">
-                        {t.createdAt
-                          ? formatDate(t.createdAt)
-                          : '-'}
-                      </td>
+                    const isLost =
+                      t.status ===
+                      'lost';
 
-                      <td className="p-3">
-                        <p className="text-gray-800 text-xs font-medium">
-                          {t.user_id?.full_name || 'Unknown'}
-                        </p>
+                    const id =
+                      t._id ||
+                      t.id;
 
-                        <p className="text-gray-400 text-[11px]">
-                          {t.user_email || '-'}
-                        </p>
-                      </td>
+                    return (
+                      <tr
+                        key={id}
+                        className="hover:bg-gray-50 transition-colors"
+                      >
+                        <td className="p-3 text-gray-400 text-xs">
+                          {t.createdAt
+                            ? formatDate(
+                                t.createdAt
+                              )
+                            : '-'}
+                        </td>
 
-                      <td className="p-3 text-gray-800 text-xs font-semibold">
-                        {t.crypto}
-                      </td>
-
-                      <td className="p-3">
-                        <span
-                          className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                            t.direction === 'buy'
-                              ? 'bg-emerald-50 text-emerald-600'
-                              : 'bg-red-50 text-red-600'
-                          }`}
-                        >
-                          {(t.direction || 'buy').toUpperCase()}
-                        </span>
-                      </td>
-
-                      <td className="p-3 text-gray-800 text-xs font-medium">
-                        {formatCurrency(t.amount)}
-                      </td>
-
-                      <td className="p-3 text-gray-800 text-xs">
-                        {t.entry_price
-                          ? formatCurrency(t.entry_price)
-                          : '-'}
-                      </td>
-
-                      <td className="p-3 text-gray-800 text-xs">
-                        {t.exit_price
-                          ? formatCurrency(t.exit_price)
-                          : '-'}
-                      </td>
-
-                      <td className="p-3 text-gray-800 text-xs">
-                        {t.duration
-                          ? `${t.duration}s`
-                          : '-'}
-                      </td>
-
-                      <td className="p-3 text-gray-800 text-xs">
-                        {t.profit_percent
-                          ? `${t.profit_percent}%`
-                          : '-'}
-                      </td>
-
-                      <td className="p-3">
-                        <p
-                          className={`text-xs font-semibold ${
-                            (t.profit_loss || 0) >= 0
-                              ? 'text-emerald-600'
-                              : 'text-red-600'
-                          }`}
-                        >
-                          {(t.profit_loss || 0) >= 0
-                            ? '+'
-                            : ''}
-                          {formatCurrency(t.profit_loss || 0)}
-                        </p>
-                      </td>
-
-                      <td className="p-3">
-                        {statusBadge(t.status)}
-                      </td>
-
-                      <td className="p-3 text-right">
-                        <div className="flex gap-1.5 justify-end">
-                          <button
-                            onClick={() =>
-                              handleOutcome(id, 'won')
-                            }
-                            disabled={savingId === id}
-                            className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors disabled:opacity-50 ${
-                              isWon
-                                ? 'bg-emerald-600 text-white'
-                                : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
-                            }`}
-                          >
-                            Won
-                          </button>
-
-                          <button
-                            onClick={() =>
-                              handleOutcome(id, 'lost')
-                            }
-                            disabled={savingId === id}
-                            className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors disabled:opacity-50 ${
-                              isLost
-                                ? 'bg-red-600 text-white'
-                                : 'bg-red-50 text-red-600 hover:bg-red-100'
-                            }`}
-                          >
-                            Lost
-                          </button>
-                        </div>
-
-                        {t.admin_outcome && (
-                          <p className="text-[10px] text-gray-400 mt-1">
-                            Admin: {t.admin_outcome}
+                        <td className="p-3">
+                          <p className="text-gray-800 text-xs font-medium">
+                            {t.user_id
+                              ?.full_name ||
+                              'Unknown'}
                           </p>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
+
+                          <p className="text-gray-400 text-[11px]">
+                            {t.user_email ||
+                              '-'}
+                          </p>
+                        </td>
+
+                        <td className="p-3 text-gray-800 text-xs font-semibold">
+                          {t.crypto}
+                        </td>
+
+                        <td className="p-3">
+                          <span
+                            className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                              t.direction ===
+                              'buy'
+                                ? 'bg-emerald-50 text-emerald-600'
+                                : 'bg-red-50 text-red-600'
+                            }`}
+                          >
+                            {(
+                              t.direction ||
+                              'buy'
+                            ).toUpperCase()}
+                          </span>
+                        </td>
+
+                        <td className="p-3 text-gray-800 text-xs font-medium">
+                          {formatCurrency(
+                            t.amount
+                          )}
+                        </td>
+
+                        <td className="p-3 text-gray-800 text-xs">
+                          {t.entry_price
+                            ? formatCurrency(
+                                t.entry_price
+                              )
+                            : '-'}
+                        </td>
+
+                        <td className="p-3 text-gray-800 text-xs">
+                          {t.exit_price
+                            ? formatCurrency(
+                                t.exit_price
+                              )
+                            : '-'}
+                        </td>
+
+                        <td className="p-3 text-gray-800 text-xs">
+                          {t.duration
+                            ? `${t.duration}s`
+                            : '-'}
+                        </td>
+
+                        <td className="p-3 text-gray-800 text-xs">
+                          {t.profit_percent
+                            ? `${t.profit_percent}%`
+                            : '-'}
+                        </td>
+
+                        <td className="p-3">
+                          <p
+                            className={`text-xs font-semibold ${
+                              (t.profit_loss ||
+                                0) >=
+                              0
+                                ? 'text-emerald-600'
+                                : 'text-red-600'
+                            }`}
+                          >
+                            {(t.profit_loss ||
+                              0) >=
+                            0
+                              ? '+'
+                              : ''}
+
+                            {formatCurrency(
+                              t.profit_loss ||
+                                0
+                            )}
+                          </p>
+                        </td>
+
+                        <td className="p-3">
+                          {statusBadge(
+                            t.status
+                          )}
+                        </td>
+
+                        <td className="p-3 text-right">
+                          <div className="flex gap-1.5 justify-end">
+                            <button
+                              onClick={() =>
+                                handleOutcome(
+                                  id,
+                                  'won'
+                                )
+                              }
+                              disabled={
+                                savingId ===
+                                id
+                              }
+                              className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors disabled:opacity-50 ${
+                                isWon
+                                  ? 'bg-emerald-600 text-white'
+                                  : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
+                              }`}
+                            >
+                              Won
+                            </button>
+
+                            <button
+                              onClick={() =>
+                                handleOutcome(
+                                  id,
+                                  'lost'
+                                )
+                              }
+                              disabled={
+                                savingId ===
+                                id
+                              }
+                              className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors disabled:opacity-50 ${
+                                isLost
+                                  ? 'bg-red-600 text-white'
+                                  : 'bg-red-50 text-red-600 hover:bg-red-100'
+                              }`}
+                            >
+                              Lost
+                            </button>
+                          </div>
+
+                          {t.admin_outcome && (
+                            <p className="text-[10px] text-gray-400 mt-1">
+                              Admin:{' '}
+                              {
+                                t.admin_outcome
+                              }
+                            </p>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  }
+                )}
               </tbody>
             </table>
           </div>
@@ -1609,30 +2681,54 @@ function TradeDataTab() {
    NOTIFICATIONS TAB
 ========================================================= */
 
-function NotificationsTab({ users = [] }) {
-  const [recipient, setRecipient] = useState('all');
-  const [selectedUser, setSelectedUser] = useState('');
-  const [title, setTitle] = useState('');
-  const [message, setMessage] = useState('');
-  const [type, setType] = useState('general');
+function NotificationsTab({
+  users = [],
+}) {
+  const [recipient, setRecipient] =
+    useState('all');
 
-  const [sending, setSending] = useState(false);
-  const [msg, setMsg] = useState('');
-  const [error, setError] = useState('');
+  const [selectedUser, setSelectedUser] =
+    useState('');
 
-  const [searchUser, setSearchUser] = useState('');
+  const [title, setTitle] =
+    useState('');
 
-  const filteredUsers = users.filter((u) => {
-    if (!searchUser.trim()) return true;
+  const [message, setMessage] =
+    useState('');
 
-    const q = searchUser.toLowerCase();
+  const [type, setType] =
+    useState('general');
 
-    return (
-      u.full_name?.toLowerCase().includes(q) ||
-      u.email?.toLowerCase().includes(q) ||
-      u.mobile?.includes(q)
-    );
-  });
+  const [sending, setSending] =
+    useState(false);
+
+  const [msg, setMsg] =
+    useState('');
+
+  const [error, setError] =
+    useState('');
+
+  const [searchUser, setSearchUser] =
+    useState('');
+
+  const filteredUsers =
+    users.filter((u) => {
+      if (!searchUser.trim())
+        return true;
+
+      const q =
+        searchUser.toLowerCase();
+
+      return (
+        u.full_name
+          ?.toLowerCase()
+          .includes(q) ||
+        u.email
+          ?.toLowerCase()
+          .includes(q) ||
+        u.mobile?.includes(q)
+      );
+    });
 
   const typeOptions = [
     {
@@ -1681,17 +2777,26 @@ function NotificationsTab({ users = [] }) {
     setError('');
 
     if (!title.trim()) {
-      setError('Please enter notification title.');
+      setError(
+        'Please enter notification title.'
+      );
       return;
     }
 
     if (!message.trim()) {
-      setError('Please enter notification message.');
+      setError(
+        'Please enter notification message.'
+      );
       return;
     }
 
-    if (recipient === 'user' && !selectedUser) {
-      setError('Please select a user.');
+    if (
+      recipient === 'user' &&
+      !selectedUser
+    ) {
+      setError(
+        'Please select a user.'
+      );
       return;
     }
 
@@ -1702,17 +2807,22 @@ function NotificationsTab({ users = [] }) {
         title: title.trim(),
         message: message.trim(),
         type,
-        recipient_type: recipient,
+        recipient_type:
+          recipient,
       };
 
-      if (recipient === 'user') {
-        payload.user_id = selectedUser;
+      if (
+        recipient === 'user'
+      ) {
+        payload.user_id =
+          selectedUser;
       }
 
-      const response = await api.post(
-        '/notifications/admin/send',
-        payload
-      );
+      const response =
+        await api.post(
+          '/notifications/admin/send',
+          payload
+        );
 
       const sentCount =
         response?.data?.count ??
@@ -1722,7 +2832,11 @@ function NotificationsTab({ users = [] }) {
 
       setMsg(
         sentCount !== null
-          ? `Notification sent successfully to ${sentCount} user${sentCount === 1 ? '' : 's'}.`
+          ? `Notification sent successfully to ${sentCount} user${
+              sentCount === 1
+                ? ''
+                : 's'
+            }.`
           : recipient === 'all'
           ? 'Notification sent successfully to all users.'
           : 'Notification sent successfully.'
@@ -1733,8 +2847,10 @@ function NotificationsTab({ users = [] }) {
       console.error(err);
 
       setError(
-        err?.response?.data?.message ||
-          err?.response?.data?.error ||
+        err?.response?.data
+          ?.message ||
+          err?.response?.data
+            ?.error ||
           'Failed to send notification. Please check the server.'
       );
     } finally {
@@ -1742,13 +2858,17 @@ function NotificationsTab({ users = [] }) {
     }
   }
 
-  const selectedUserData = users.find(
-    (u) => String(u._id || u.id) === String(selectedUser)
-  );
+  const selectedUserData =
+    users.find(
+      (u) =>
+        String(
+          u._id || u.id
+        ) ===
+        String(selectedUser)
+    );
 
   return (
     <div className="space-y-4">
-      {/* Header */}
       <div className="bg-white rounded-xl shadow-sm border border-sky-100 p-5">
         <div className="flex items-start gap-3">
           <div className="w-11 h-11 rounded-xl bg-sky-50 flex items-center justify-center flex-shrink-0">
@@ -1761,13 +2881,14 @@ function NotificationsTab({ users = [] }) {
             </h3>
 
             <p className="text-gray-400 text-xs mt-1">
-              Send an in-app notification to one user or all registered users.
+              Send an in-app notification
+              to one user or all registered
+              users.
             </p>
           </div>
         </div>
       </div>
 
-      {/* Success */}
       {msg && (
         <div className="flex items-start gap-3 bg-emerald-50 border border-emerald-200 rounded-xl p-4">
           <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0" />
@@ -1783,7 +2904,9 @@ function NotificationsTab({ users = [] }) {
           </div>
 
           <button
-            onClick={() => setMsg('')}
+            onClick={() =>
+              setMsg('')
+            }
             className="text-emerald-500 hover:text-emerald-700"
           >
             <X className="w-4 h-4" />
@@ -1791,7 +2914,6 @@ function NotificationsTab({ users = [] }) {
         </div>
       )}
 
-      {/* Error */}
       {error && (
         <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl p-4">
           <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0" />
@@ -1807,7 +2929,9 @@ function NotificationsTab({ users = [] }) {
           </div>
 
           <button
-            onClick={() => setError('')}
+            onClick={() =>
+              setError('')
+            }
             className="text-red-500 hover:text-red-700"
           >
             <X className="w-4 h-4" />
@@ -1816,10 +2940,10 @@ function NotificationsTab({ users = [] }) {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Form */}
+        {/* FORM */}
         <div className="bg-white rounded-xl shadow-sm border border-sky-100 p-5">
           <div className="space-y-5">
-            {/* Recipient */}
+            {/* RECIPIENT */}
             <div>
               <label className="text-gray-400 text-[10px] font-medium uppercase tracking-wider mb-2 block">
                 Send To
@@ -1829,11 +2953,16 @@ function NotificationsTab({ users = [] }) {
                 <button
                   type="button"
                   onClick={() => {
-                    setRecipient('all');
-                    setSelectedUser('');
+                    setRecipient(
+                      'all'
+                    );
+                    setSelectedUser(
+                      ''
+                    );
                   }}
                   className={`flex items-center justify-center gap-2 px-3 py-3 rounded-xl border text-sm font-medium transition-colors ${
-                    recipient === 'all'
+                    recipient ===
+                    'all'
                       ? 'bg-sky-50 border-sky-200 text-sky-600'
                       : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'
                   }`}
@@ -1844,9 +2973,14 @@ function NotificationsTab({ users = [] }) {
 
                 <button
                   type="button"
-                  onClick={() => setRecipient('user')}
+                  onClick={() =>
+                    setRecipient(
+                      'user'
+                    )
+                  }
                   className={`flex items-center justify-center gap-2 px-3 py-3 rounded-xl border text-sm font-medium transition-colors ${
-                    recipient === 'user'
+                    recipient ===
+                    'user'
                       ? 'bg-sky-50 border-sky-200 text-sky-600'
                       : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'
                   }`}
@@ -1857,8 +2991,9 @@ function NotificationsTab({ users = [] }) {
               </div>
             </div>
 
-            {/* User selector */}
-            {recipient === 'user' && (
+            {/* USER SELECTOR */}
+            {recipient ===
+              'user' && (
               <div>
                 <label className="text-gray-400 text-[10px] font-medium uppercase tracking-wider mb-2 block">
                   Select User
@@ -1869,8 +3004,17 @@ function NotificationsTab({ users = [] }) {
 
                   <input
                     type="text"
-                    value={searchUser}
-                    onChange={(e) => setSearchUser(e.target.value)}
+                    value={
+                      searchUser
+                    }
+                    onChange={(
+                      e
+                    ) =>
+                      setSearchUser(
+                        e.target
+                          .value
+                      )
+                    }
                     placeholder="Search name, email or mobile..."
                     className="w-full bg-gray-50 border border-gray-200 rounded-lg pl-10 pr-3 py-2.5 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
                   />
@@ -1878,22 +3022,44 @@ function NotificationsTab({ users = [] }) {
 
                 <div className="relative">
                   <select
-                    value={selectedUser}
-                    onChange={(e) => setSelectedUser(e.target.value)}
+                    value={
+                      selectedUser
+                    }
+                    onChange={(
+                      e
+                    ) =>
+                      setSelectedUser(
+                        e.target
+                          .value
+                      )
+                    }
                     className="w-full appearance-none bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 pr-9 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
                   >
                     <option value="">
                       Select user...
                     </option>
 
-                    {filteredUsers.map((u) => (
-                      <option
-                        key={u._id || u.id}
-                        value={u._id || u.id}
-                      >
-                        {u.full_name || 'User'} — {u.email}
-                      </option>
-                    ))}
+                    {filteredUsers.map(
+                      (u) => (
+                        <option
+                          key={
+                            u._id ||
+                            u.id
+                          }
+                          value={
+                            u._id ||
+                            u.id
+                          }
+                        >
+                          {u.full_name ||
+                            'User'}{' '}
+                          —{' '}
+                          {
+                            u.email
+                          }
+                        </option>
+                      )
+                    )}
                   </select>
 
                   <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -1903,16 +3069,23 @@ function NotificationsTab({ users = [] }) {
                   <div className="mt-2 bg-sky-50 border border-sky-100 rounded-lg p-3">
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 rounded-lg bg-sky-500 flex items-center justify-center text-white text-xs font-bold">
-                        {selectedUserData.full_name?.[0]?.toUpperCase() || 'U'}
+                        {selectedUserData
+                          .full_name?.[0]
+                          ?.toUpperCase() ||
+                          'U'}
                       </div>
 
                       <div className="min-w-0">
                         <p className="text-gray-800 text-xs font-semibold truncate">
-                          {selectedUserData.full_name}
+                          {
+                            selectedUserData.full_name
+                          }
                         </p>
 
                         <p className="text-gray-400 text-[11px] truncate">
-                          {selectedUserData.email}
+                          {
+                            selectedUserData.email
+                          }
                         </p>
                       </div>
 
@@ -1923,36 +3096,46 @@ function NotificationsTab({ users = [] }) {
               </div>
             )}
 
-            {/* Notification Type */}
+            {/* TYPE */}
             <div>
               <label className="text-gray-400 text-[10px] font-medium uppercase tracking-wider mb-2 block">
                 Notification Type
               </label>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {typeOptions.map((item) => {
-                  const TypeIcon = item.icon;
+                {typeOptions.map(
+                  (item) => {
+                    const TypeIcon =
+                      item.icon;
 
-                  return (
-                    <button
-                      type="button"
-                      key={item.value}
-                      onClick={() => setType(item.value)}
-                      className={`flex items-center justify-center gap-1.5 px-2 py-2.5 rounded-lg border text-xs font-medium transition-colors ${
-                        type === item.value
-                          ? 'bg-sky-50 border-sky-200 text-sky-600'
-                          : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'
-                      }`}
-                    >
-                      <TypeIcon className="w-3.5 h-3.5" />
-                      {item.label}
-                    </button>
-                  );
-                })}
+                    return (
+                      <button
+                        type="button"
+                        key={
+                          item.value
+                        }
+                        onClick={() =>
+                          setType(
+                            item.value
+                          )
+                        }
+                        className={`flex items-center justify-center gap-1.5 px-2 py-2.5 rounded-lg border text-xs font-medium transition-colors ${
+                          type ===
+                          item.value
+                            ? 'bg-sky-50 border-sky-200 text-sky-600'
+                            : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'
+                        }`}
+                      >
+                        <TypeIcon className="w-3.5 h-3.5" />
+                        {item.label}
+                      </button>
+                    );
+                  }
+                )}
               </div>
             </div>
 
-            {/* Title */}
+            {/* TITLE */}
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="text-gray-400 text-[10px] font-medium uppercase tracking-wider">
@@ -1960,7 +3143,8 @@ function NotificationsTab({ users = [] }) {
                 </label>
 
                 <span className="text-[10px] text-gray-400">
-                  {title.length}/100
+                  {title.length}
+                  /100
                 </span>
               </div>
 
@@ -1968,13 +3152,17 @@ function NotificationsTab({ users = [] }) {
                 type="text"
                 maxLength={100}
                 value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                onChange={(e) =>
+                  setTitle(
+                    e.target.value
+                  )
+                }
                 placeholder="Notification title"
                 className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
               />
             </div>
 
-            {/* Message */}
+            {/* MESSAGE */}
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="text-gray-400 text-[10px] font-medium uppercase tracking-wider">
@@ -1982,7 +3170,8 @@ function NotificationsTab({ users = [] }) {
                 </label>
 
                 <span className="text-[10px] text-gray-400">
-                  {message.length}/1000
+                  {message.length}
+                  /1000
                 </span>
               </div>
 
@@ -1990,21 +3179,29 @@ function NotificationsTab({ users = [] }) {
                 maxLength={1000}
                 rows={6}
                 value={message}
-                onChange={(e) => setMessage(e.target.value)}
+                onChange={(e) =>
+                  setMessage(
+                    e.target.value
+                  )
+                }
                 placeholder="Write your notification message..."
                 className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-gray-800 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
               />
             </div>
 
-            {/* Send */}
+            {/* SEND */}
             <button
               type="button"
-              onClick={handleSend}
+              onClick={
+                handleSend
+              }
               disabled={
                 sending ||
                 !title.trim() ||
                 !message.trim() ||
-                (recipient === 'user' && !selectedUser)
+                (recipient ===
+                  'user' &&
+                  !selectedUser)
               }
               className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold bg-sky-500 hover:bg-sky-600 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -2023,7 +3220,7 @@ function NotificationsTab({ users = [] }) {
           </div>
         </div>
 
-        {/* Preview */}
+        {/* PREVIEW */}
         <div className="bg-white rounded-xl shadow-sm border border-sky-100 p-5">
           <div className="flex items-center gap-2 mb-4">
             <Eye className="w-4 h-4 text-sky-500" />
@@ -2043,7 +3240,8 @@ function NotificationsTab({ users = [] }) {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-gray-900 text-sm font-semibold truncate">
-                      {title || 'Notification Title'}
+                      {title ||
+                        'Notification Title'}
                     </p>
 
                     <span className="text-[10px] text-gray-400 flex-shrink-0">
@@ -2052,27 +3250,39 @@ function NotificationsTab({ users = [] }) {
                   </div>
 
                   <p className="text-gray-400 text-xs mt-1">
-                    {type.charAt(0).toUpperCase() + type.slice(1)}
+                    {type
+                      .charAt(0)
+                      .toUpperCase() +
+                      type.slice(1)}
                   </p>
 
                   <p className="text-gray-600 text-sm mt-3 whitespace-pre-wrap break-words">
-                    {message || 'Your notification message will appear here.'}
+                    {message ||
+                      'Your notification message will appear here.'}
                   </p>
                 </div>
               </div>
             </div>
 
             <div className="mt-4 flex items-center gap-2 text-[11px] text-gray-400">
-              {recipient === 'all' ? (
+              {recipient ===
+              'all' ? (
                 <>
                   <Users className="w-3.5 h-3.5" />
-                  This notification will be sent to all users.
+
+                  This notification will
+                  be sent to all users.
                 </>
               ) : (
                 <>
                   <User className="w-3.5 h-3.5" />
-                  This notification will be sent to{' '}
-                  {selectedUserData?.full_name || 'selected user'}.
+
+                  This notification will
+                  be sent to{' '}
+                  {selectedUserData
+                    ?.full_name ||
+                    'selected user'}
+                  .
                 </>
               )}
             </div>
@@ -2085,9 +3295,12 @@ function NotificationsTab({ users = [] }) {
               </p>
 
               <p className="text-gray-800 text-xs font-semibold mt-1">
-                {recipient === 'all'
+                {recipient ===
+                'all'
                   ? `All Users (${users.length})`
-                  : selectedUserData?.full_name || 'Not selected'}
+                  : selectedUserData
+                      ?.full_name ||
+                    'Not selected'}
               </p>
             </div>
 
@@ -2114,9 +3327,11 @@ function NotificationsTab({ users = [] }) {
             </p>
 
             <p className="text-amber-600 text-[11px] mt-1 leading-relaxed">
-              Notifications are stored for the selected user(s) and should
-              appear in the user's notification area after the backend
-              notification endpoint is connected.
+              Notifications are stored for
+              the selected user(s) and should
+              appear in the user's notification
+              area after the backend notification
+              endpoint is connected.
             </p>
           </div>
         </div>
@@ -2125,93 +3340,154 @@ function NotificationsTab({ users = [] }) {
   );
 }
 
-function WalletsTab({ users = [] }) {
-  const [wallets, setWallets] = useState([]);
-  const [loading, setLoading] = useState(true);
+/* =========================================================
+   WALLETS TAB
+========================================================= */
 
-  const [form, setForm] = useState({
-    currency: 'USDT_TRC20',
-    address: '',
-    label: '',
-    network: 'TRC20',
-  });
+function WalletsTab({
+  users = [],
+}) {
+  const [wallets, setWallets] =
+    useState([]);
 
-  const [adding, setAdding] = useState(false);
+  const [loading, setLoading] =
+    useState(true);
 
-  const [inrRate, setInrRate] = useState(85);
-  const [rateSaving, setRateSaving] = useState(false);
+  const [form, setForm] =
+    useState({
+      currency:
+        'USDT_TRC20',
+      address: '',
+      label: '',
+      network: 'TRC20',
+    });
 
-  const [banks, setBanks] = useState([]);
+  const [adding, setAdding] =
+    useState(false);
 
-  const [bankForm, setBankForm] = useState({
-    bank_name: '',
-    account_holder: '',
-    account_number: '',
-    ifsc_code: '',
-    upi_id: '',
-    branch: '',
-    note: '',
-  });
+  const [inrRate, setInrRate] =
+    useState(85);
 
-  const [bankAdding, setBankAdding] = useState(false);
+  const [rateSaving, setRateSaving] =
+    useState(false);
 
-  const [refCode, setRefCode] = useState('');
-  const [refOwner, setRefOwner] = useState('');
-  const [refSaving, setRefSaving] = useState(false);
-  const [refMsg, setRefMsg] = useState('');
+  const [banks, setBanks] =
+    useState([]);
 
-  const [tgUsername, setTgUsername] = useState('');
-  const [tgSaving, setTgSaving] = useState(false);
-  const [tgMsg, setTgMsg] = useState('');
+  const [bankForm, setBankForm] =
+    useState({
+      bank_name: '',
+      account_holder: '',
+      account_number: '',
+      ifsc_code: '',
+      upi_id: '',
+      branch: '',
+      note: '',
+    });
+
+  const [bankAdding, setBankAdding] =
+    useState(false);
+
+  const [refCode, setRefCode] =
+    useState('');
+
+  const [refOwner, setRefOwner] =
+    useState('');
+
+  const [refSaving, setRefSaving] =
+    useState(false);
+
+  const [refMsg, setRefMsg] =
+    useState('');
+
+  const [tgUsername, setTgUsername] =
+    useState('');
+
+  const [tgSaving, setTgSaving] =
+    useState(false);
+
+  const [tgMsg, setTgMsg] =
+    useState('');
 
   async function fetchWallets() {
-    const { data } = await api.get('/wallets/all');
+    const { data } =
+      await api.get(
+        '/wallets/all'
+      );
 
     setWallets(
       Array.isArray(data)
         ? data
-        : Array.isArray(data.wallets)
+        : Array.isArray(
+            data.wallets
+          )
         ? data.wallets
         : []
     );
   }
 
   async function fetchBanks() {
-    const { data } = await api.get('/banks/all');
+    const { data } =
+      await api.get(
+        '/banks/all'
+      );
 
     setBanks(
       Array.isArray(data)
         ? data
-        : Array.isArray(data.banks)
+        : Array.isArray(
+            data.banks
+          )
         ? data.banks
         : []
     );
   }
 
   async function fetchSettings() {
-    const { data } = await api.get('/settings');
+    const { data } =
+      await api.get(
+        '/settings'
+      );
 
     if (data?.inr_rate) {
-      setInrRate(Number(data.inr_rate));
+      setInrRate(
+        Number(data.inr_rate)
+      );
     }
 
-    if (data?.support_telegram) {
+    if (
+      data?.support_telegram
+    ) {
       setTgUsername(
-        String(data.support_telegram).replace(/^@/, '')
+        String(
+          data.support_telegram
+        ).replace(
+          /^@/,
+          ''
+        )
       );
     }
   }
 
   async function fetchReferral() {
     try {
-      const { data } = await api.get('/referrals/master');
+      const { data } =
+        await api.get(
+          '/referrals/master'
+        );
 
       if (data?.code) {
-        setRefCode(data.code);
+        setRefCode(
+          data.code
+        );
       }
 
-      if (data?.owner?._id) {
-        setRefOwner(data.owner._id);
+      if (
+        data?.owner?._id
+      ) {
+        setRefOwner(
+          data.owner._id
+        );
       }
     } catch (err) {
       console.error(err);
@@ -2242,15 +3518,20 @@ function WalletsTab({ users = [] }) {
   async function handleAdd(e) {
     e.preventDefault();
 
-    if (!form.address) return;
+    if (!form.address)
+      return;
 
     setAdding(true);
 
     try {
-      await api.post('/wallets', form);
+      await api.post(
+        '/wallets',
+        form
+      );
 
       setForm({
-        currency: 'USDT_TRC20',
+        currency:
+          'USDT_TRC20',
         address: '',
         label: '',
         network: 'TRC20',
@@ -2259,62 +3540,103 @@ function WalletsTab({ users = [] }) {
       await fetchWallets();
     } catch (err) {
       console.error(err);
+
+      alert(
+        err?.response?.data
+          ?.message ||
+          'Failed to add wallet.'
+      );
     } finally {
       setAdding(false);
     }
   }
 
-  async function handleDelete(id) {
+  async function handleDelete(
+    id
+  ) {
     try {
-      await api.delete(`/wallets/${id}`);
+      await api.delete(
+        `/wallets/${id}`
+      );
+
       await fetchWallets();
     } catch (err) {
       console.error(err);
+
+      alert(
+        err?.response?.data
+          ?.message ||
+          'Failed to delete wallet.'
+      );
     }
   }
 
   async function handleRateSave() {
-    const value = parseFloat(inrRate);
+    const value =
+      parseFloat(inrRate);
 
-    if (!value || value <= 0) return;
+    if (!value || value <= 0)
+      return;
 
     setRateSaving(true);
 
     try {
-      await api.put('/settings', {
-        key: 'inr_rate',
-        value,
-      });
+      await api.put(
+        '/settings',
+        {
+          key: 'inr_rate',
+          value,
+        }
+      );
+
+      alert(
+        'INR rate saved successfully.'
+      );
     } catch (err) {
       console.error(err);
+
+      alert(
+        err?.response?.data
+          ?.message ||
+          'Failed to save INR rate.'
+      );
     } finally {
       setRateSaving(false);
     }
   }
 
   async function handleRefSave() {
-    if (!refCode.trim() || !refOwner) return;
+    if (
+      !refCode.trim() ||
+      !refOwner
+    )
+      return;
 
     setRefSaving(true);
     setRefMsg('');
 
     try {
-      const { data } = await api.post(
-        '/referrals/set-master',
-        {
-          code: refCode,
-          owner_id: refOwner,
-        }
-      );
+      const { data } =
+        await api.post(
+          '/referrals/set-master',
+          {
+            code: refCode,
+            owner_id:
+              refOwner,
+          }
+        );
 
-      setRefCode(data.code);
+      setRefCode(
+        data.code
+      );
 
       setRefMsg(
         `Saved! Signups now require code ${data.code}`
       );
     } catch (err) {
       setRefMsg(
-        err?.response?.data?.message ||
+        err?.response?.data
+          ?.message ||
           'Failed to save'
       );
     } finally {
@@ -2323,21 +3645,35 @@ function WalletsTab({ users = [] }) {
   }
 
   async function handleTgSave() {
-    if (!tgUsername.trim()) return;
+    if (
+      !tgUsername.trim()
+    )
+      return;
 
     setTgSaving(true);
     setTgMsg('');
 
     try {
-      await api.put('/settings', {
-        key: 'support_telegram',
-        value: tgUsername.trim().replace(/^@/, ''),
-      });
+      await api.put(
+        '/settings',
+        {
+          key: 'support_telegram',
+          value: tgUsername
+            .trim()
+            .replace(
+              /^@/,
+              ''
+            ),
+        }
+      );
 
-      setTgMsg('Saved! Support button updated.');
+      setTgMsg(
+        'Saved! Support button updated.'
+      );
     } catch (err) {
       setTgMsg(
-        err?.response?.data?.message ||
+        err?.response?.data
+          ?.message ||
           'Failed to save'
       );
     } finally {
@@ -2345,7 +3681,9 @@ function WalletsTab({ users = [] }) {
     }
   }
 
-  async function handleBankAdd(e) {
+  async function handleBankAdd(
+    e
+  ) {
     e.preventDefault();
 
     if (
@@ -2359,7 +3697,10 @@ function WalletsTab({ users = [] }) {
     setBankAdding(true);
 
     try {
-      await api.post('/banks', bankForm);
+      await api.post(
+        '/banks',
+        bankForm
+      );
 
       setBankForm({
         bank_name: '',
@@ -2374,32 +3715,60 @@ function WalletsTab({ users = [] }) {
       await fetchBanks();
     } catch (err) {
       console.error(err);
+
+      alert(
+        err?.response?.data
+          ?.message ||
+          'Failed to add bank.'
+      );
     } finally {
       setBankAdding(false);
     }
   }
 
-  async function handleBankToggle(bank) {
+  async function handleBankToggle(
+    bank
+  ) {
     try {
       await api.put(
-        `/banks/${bank._id || bank.id}`,
+        `/banks/${
+          bank._id || bank.id
+        }`,
         {
-          is_active: !bank.is_active,
+          is_active:
+            !bank.is_active,
         }
       );
 
       await fetchBanks();
     } catch (err) {
       console.error(err);
+
+      alert(
+        err?.response?.data
+          ?.message ||
+          'Failed to update bank.'
+      );
     }
   }
 
-  async function handleBankDelete(id) {
+  async function handleBankDelete(
+    id
+  ) {
     try {
-      await api.delete(`/banks/${id}`);
+      await api.delete(
+        `/banks/${id}`
+      );
+
       await fetchBanks();
     } catch (err) {
       console.error(err);
+
+      alert(
+        err?.response?.data
+          ?.message ||
+          'Failed to delete bank.'
+      );
     }
   }
 
@@ -2422,7 +3791,11 @@ function WalletsTab({ users = [] }) {
               min="1"
               step="0.01"
               value={inrRate}
-              onChange={(e) => setInrRate(e.target.value)}
+              onChange={(e) =>
+                setInrRate(
+                  e.target.value
+                )
+              }
               className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
             />
           </div>
@@ -2432,8 +3805,12 @@ function WalletsTab({ users = [] }) {
           </p>
 
           <button
-            onClick={handleRateSave}
-            disabled={rateSaving}
+            onClick={
+              handleRateSave
+            }
+            disabled={
+              rateSaving
+            }
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-sky-500 hover:bg-sky-600 text-white transition-colors disabled:opacity-50"
           >
             {rateSaving ? (
@@ -2441,6 +3818,7 @@ function WalletsTab({ users = [] }) {
             ) : (
               <Check className="w-3.5 h-3.5" />
             )}
+
             Save Rate
           </button>
         </div>
@@ -2457,8 +3835,10 @@ function WalletsTab({ users = [] }) {
         </div>
 
         <p className="text-gray-400 text-xs mb-3">
-          Only this single referral code will be accepted at signup.
-          The owner earns the $5 bonus for each new user.
+          Only this single referral
+          code will be accepted at
+          signup. The owner earns the
+          $5 bonus for each new user.
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -2471,7 +3851,9 @@ function WalletsTab({ users = [] }) {
               type="text"
               value={refCode}
               onChange={(e) =>
-                setRefCode(e.target.value.toUpperCase())
+                setRefCode(
+                  e.target.value.toUpperCase()
+                )
               }
               placeholder="J9115UTT"
               className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-gray-800 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
@@ -2486,7 +3868,9 @@ function WalletsTab({ users = [] }) {
             <select
               value={refOwner}
               onChange={(e) =>
-                setRefOwner(e.target.value)
+                setRefOwner(
+                  e.target.value
+                )
               }
               className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
             >
@@ -2494,21 +3878,35 @@ function WalletsTab({ users = [] }) {
                 Select account
               </option>
 
-              {users.map((u) => (
-                <option
-                  key={u._id || u.id}
-                  value={u._id || u.id}
-                >
-                  {u.full_name || u.email} ({u.email})
-                </option>
-              ))}
+              {users.map(
+                (u) => (
+                  <option
+                    key={
+                      u._id ||
+                      u.id
+                    }
+                    value={
+                      u._id ||
+                      u.id
+                    }
+                  >
+                    {u.full_name ||
+                      u.email}{' '}
+                    (
+                    {u.email}
+                    )
+                  </option>
+                )
+              )}
             </select>
           </div>
         </div>
 
         <div className="flex items-center gap-3 mt-3 flex-wrap">
           <button
-            onClick={handleRefSave}
+            onClick={
+              handleRefSave
+            }
             disabled={
               refSaving ||
               !refCode.trim() ||
@@ -2528,7 +3926,9 @@ function WalletsTab({ users = [] }) {
           {refMsg && (
             <p
               className={`text-xs ${
-                refMsg.startsWith('Saved')
+                refMsg.startsWith(
+                  'Saved'
+                )
                   ? 'text-emerald-600'
                   : 'text-red-500'
               }`}
@@ -2550,8 +3950,9 @@ function WalletsTab({ users = [] }) {
         </div>
 
         <p className="text-gray-400 text-xs mb-3">
-          The floating "Chat with Support" button opens this Telegram
-          handle on every page.
+          The floating "Chat with Support"
+          button opens this Telegram handle
+          on every page.
         </p>
 
         <div className="flex items-center gap-3 flex-wrap">
@@ -2561,7 +3962,10 @@ function WalletsTab({ users = [] }) {
               value={tgUsername}
               onChange={(e) =>
                 setTgUsername(
-                  e.target.value.replace(/^@/, '')
+                  e.target.value.replace(
+                    /^@/,
+                    ''
+                  )
                 )
               }
               placeholder="YourTelegramBot"
@@ -2572,12 +3976,15 @@ function WalletsTab({ users = [] }) {
           <span className="text-gray-400 text-xs">
             t.me/
             <span className="font-semibold text-gray-600">
-              {tgUsername || '...'}
+              {tgUsername ||
+                '...'}
             </span>
           </span>
 
           <button
-            onClick={handleTgSave}
+            onClick={
+              handleTgSave
+            }
             disabled={
               tgSaving ||
               !tgUsername.trim()
@@ -2589,13 +3996,16 @@ function WalletsTab({ users = [] }) {
             ) : (
               <Check className="w-3.5 h-3.5" />
             )}
+
             Save
           </button>
 
           {tgMsg && (
             <p
               className={`text-xs ${
-                tgMsg.startsWith('Saved')
+                tgMsg.startsWith(
+                  'Saved'
+                )
                   ? 'text-emerald-600'
                   : 'text-red-500'
               }`}
@@ -2608,7 +4018,9 @@ function WalletsTab({ users = [] }) {
 
       {/* BANK FORM */}
       <form
-        onSubmit={handleBankAdd}
+        onSubmit={
+          handleBankAdd
+        }
         className="bg-white rounded-xl shadow-sm border border-sky-100 p-4"
       >
         <div className="flex items-center gap-2 mb-3">
@@ -2621,33 +4033,81 @@ function WalletsTab({ users = [] }) {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
           {[
-            ['bank_name', 'Bank Name', 'HDFC Bank'],
-            ['account_holder', 'Account Holder', 'Account holder name'],
-            ['account_number', 'Account Number', 'Account number'],
-            ['ifsc_code', 'IFSC Code', 'HDFC0001234'],
-            ['upi_id', 'UPI ID', 'name@upi'],
-            ['branch', 'Branch', 'Branch (optional)'],
-            ['note', 'Note', 'Instruction note (optional)'],
-          ].map(([key, label, placeholder]) => (
-            <div key={key}>
-              <label className="text-gray-400 text-[10px] font-medium uppercase tracking-wider mb-1 block">
-                {label}
-              </label>
+            [
+              'bank_name',
+              'Bank Name',
+              'HDFC Bank',
+            ],
+            [
+              'account_holder',
+              'Account Holder',
+              'Account holder name',
+            ],
+            [
+              'account_number',
+              'Account Number',
+              'Account number',
+            ],
+            [
+              'ifsc_code',
+              'IFSC Code',
+              'HDFC0001234',
+            ],
+            [
+              'upi_id',
+              'UPI ID',
+              'name@upi',
+            ],
+            [
+              'branch',
+              'Branch',
+              'Branch (optional)',
+            ],
+            [
+              'note',
+              'Note',
+              'Instruction note (optional)',
+            ],
+          ].map(
+            ([
+              key,
+              label,
+              placeholder,
+            ]) => (
+              <div
+                key={key}
+              >
+                <label className="text-gray-400 text-[10px] font-medium uppercase tracking-wider mb-1 block">
+                  {label}
+                </label>
 
-              <input
-                type="text"
-                value={bankForm[key]}
-                onChange={(e) =>
-                  setBankForm({
-                    ...bankForm,
-                    [key]: e.target.value,
-                  })
-                }
-                placeholder={placeholder}
-                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
-              />
-            </div>
-          ))}
+                <input
+                  type="text"
+                  value={
+                    bankForm[
+                      key
+                    ]
+                  }
+                  onChange={(
+                    e
+                  ) =>
+                    setBankForm(
+                      {
+                        ...bankForm,
+                        [key]:
+                          e.target
+                            .value,
+                      }
+                    )
+                  }
+                  placeholder={
+                    placeholder
+                  }
+                  className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                />
+              </div>
+            )
+          )}
         </div>
 
         <button
@@ -2669,87 +4129,110 @@ function WalletsTab({ users = [] }) {
       </form>
 
       {/* BANK LIST */}
-      {banks.length > 0 && (
+      {banks.length >
+        0 && (
         <div className="bg-white rounded-xl shadow-sm border border-sky-100 p-4">
           <div className="flex items-center gap-2 mb-3">
             <Landmark className="w-4 h-4 text-sky-500" />
 
             <h4 className="text-gray-900 text-sm font-semibold">
-              Bank Accounts ({banks.length})
+              Bank Accounts (
+              {banks.length})
             </h4>
           </div>
 
           <div className="space-y-2">
-            {banks.map((b) => (
-              <div
-                key={b._id || b.id}
-                className="flex items-center justify-between gap-3 rounded-lg border border-gray-100 p-3"
-              >
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-gray-800 text-sm font-semibold">
-                      {b.bank_name}
-                    </p>
+            {banks.map(
+              (b) => (
+                <div
+                  key={
+                    b._id ||
+                    b.id
+                  }
+                  className="flex items-center justify-between gap-3 rounded-lg border border-gray-100 p-3"
+                >
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-gray-800 text-sm font-semibold">
+                        {
+                          b.bank_name
+                        }
+                      </p>
 
-                    <span
-                      className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                        b.is_active === false
-                          ? 'bg-red-50 text-red-600'
-                          : 'bg-emerald-50 text-emerald-600'
-                      }`}
-                    >
-                      {b.is_active === false
-                        ? 'Inactive'
-                        : 'Active'}
-                    </span>
+                      <span
+                        className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                          b.is_active ===
+                          false
+                            ? 'bg-red-50 text-red-600'
+                            : 'bg-emerald-50 text-emerald-600'
+                        }`}
+                      >
+                        {b.is_active ===
+                        false
+                          ? 'Inactive'
+                          : 'Active'}
+                      </span>
+                    </div>
+
+                    <p className="text-gray-400 text-xs mt-0.5">
+                      {
+                        b.account_holder
+                      }{' '}
+                      ·{' '}
+                      {
+                        b.account_number
+                      }
+                      {b.ifsc_code
+                        ? ` · ${b.ifsc_code}`
+                        : ''}
+                      {b.upi_id
+                        ? ` · ${b.upi_id}`
+                        : ''}
+                    </p>
                   </div>
 
-                  <p className="text-gray-400 text-xs mt-0.5">
-                    {b.account_holder} · {b.account_number}
-                    {b.ifsc_code
-                      ? ` · ${b.ifsc_code}`
-                      : ''}
-                    {b.upi_id
-                      ? ` · ${b.upi_id}`
-                      : ''}
-                  </p>
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <button
+                      onClick={() =>
+                        handleBankToggle(
+                          b
+                        )
+                      }
+                      className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors ${
+                        b.is_active ===
+                        false
+                          ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
+                          : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                      }`}
+                    >
+                      {b.is_active ===
+                      false ? (
+                        <ToggleRight className="w-3.5 h-3.5" />
+                      ) : (
+                        <ToggleLeft className="w-3.5 h-3.5" />
+                      )}
+
+                      {b.is_active ===
+                      false
+                        ? 'Activate'
+                        : 'Deactivate'}
+                    </button>
+
+                    <button
+                      onClick={() =>
+                        handleBankDelete(
+                          b._id ||
+                            b.id
+                        )
+                      }
+                      className="p-2 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
-
-                <div className="flex items-center gap-1.5 flex-shrink-0">
-                  <button
-                    onClick={() =>
-                      handleBankToggle(b)
-                    }
-                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors ${
-                      b.is_active === false
-                        ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
-                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                    }`}
-                  >
-                    {b.is_active === false ? (
-                      <ToggleRight className="w-3.5 h-3.5" />
-                    ) : (
-                      <ToggleLeft className="w-3.5 h-3.5" />
-                    )}
-
-                    {b.is_active === false
-                      ? 'Activate'
-                      : 'Deactivate'}
-                  </button>
-
-                  <button
-                    onClick={() =>
-                      handleBankDelete(
-                        b._id || b.id
-                      )
-                    }
-                    className="p-2 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
+              )
+            )}
           </div>
         </div>
       )}
@@ -2770,11 +4253,15 @@ function WalletsTab({ users = [] }) {
             </label>
 
             <select
-              value={form.currency}
+              value={
+                form.currency
+              }
               onChange={(e) =>
                 setForm({
                   ...form,
-                  currency: e.target.value,
+                  currency:
+                    e.target
+                      .value,
                 })
               }
               className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
@@ -2782,15 +4269,19 @@ function WalletsTab({ users = [] }) {
               <option value="USDT_TRC20">
                 USDT (TRC20)
               </option>
+
               <option value="USDT_ERC20">
                 USDT (ERC20)
               </option>
+
               <option value="BTC">
                 Bitcoin (BTC)
               </option>
+
               <option value="ETH">
                 Ethereum (ETH)
               </option>
+
               <option value="USDC">
                 USD Coin (USDC)
               </option>
@@ -2804,11 +4295,15 @@ function WalletsTab({ users = [] }) {
 
             <input
               type="text"
-              value={form.address}
+              value={
+                form.address
+              }
               onChange={(e) =>
                 setForm({
                   ...form,
-                  address: e.target.value,
+                  address:
+                    e.target
+                      .value,
                 })
               }
               placeholder="Wallet address"
@@ -2823,11 +4318,15 @@ function WalletsTab({ users = [] }) {
 
             <input
               type="text"
-              value={form.label}
+              value={
+                form.label
+              }
               onChange={(e) =>
                 setForm({
                   ...form,
-                  label: e.target.value,
+                  label:
+                    e.target
+                      .value,
                 })
               }
               placeholder="Label (optional)"
@@ -2841,32 +4340,55 @@ function WalletsTab({ users = [] }) {
             </label>
 
             <select
-              value={form.network}
+              value={
+                form.network
+              }
               onChange={(e) =>
                 setForm({
                   ...form,
-                  network: e.target.value,
+                  network:
+                    e.target
+                      .value,
                 })
               }
               className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
             >
-              <option value="TRC20">TRC20</option>
-              <option value="ERC20">ERC20</option>
-              <option value="BEP20">BEP20</option>
-              <option value="BTC">Bitcoin</option>
-              <option value="SPL">SPL</option>
+              <option value="TRC20">
+                TRC20
+              </option>
+
+              <option value="ERC20">
+                ERC20
+              </option>
+
+              <option value="BEP20">
+                BEP20
+              </option>
+
+              <option value="BTC">
+                Bitcoin
+              </option>
+
+              <option value="SPL">
+                SPL
+              </option>
             </select>
           </div>
         </div>
 
         <button
           type="submit"
-          disabled={adding || !form.address}
+          disabled={
+            adding ||
+            !form.address
+          }
           className="mt-3 flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-sky-500 hover:bg-sky-600 text-white transition-colors disabled:opacity-50"
         >
           <Plus className="w-3.5 h-3.5" />
 
-          {adding ? 'Adding...' : 'Add Wallet'}
+          {adding
+            ? 'Adding...'
+            : 'Add Wallet'}
         </button>
       </form>
 
@@ -2875,7 +4397,8 @@ function WalletsTab({ users = [] }) {
         <div className="flex justify-center py-12">
           <div className="w-8 h-8 border-4 border-sky-200 border-t-sky-500 rounded-full animate-spin" />
         </div>
-      ) : wallets.length === 0 ? (
+      ) : wallets.length ===
+        0 ? (
         <div className="text-center py-12">
           <WalletCards className="w-12 h-12 text-gray-300 mx-auto mb-3" />
 
@@ -2885,64 +4408,92 @@ function WalletsTab({ users = [] }) {
         </div>
       ) : (
         <div className="space-y-2">
-          {wallets.map((w) => (
-            <div
-              key={w._id || w.id}
-              className="bg-white rounded-xl shadow-sm border border-sky-100 p-4 flex items-center justify-between gap-3"
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-10 h-10 rounded-xl bg-sky-50 flex items-center justify-center flex-shrink-0">
-                  <Wallet className="w-5 h-5 text-sky-500" />
-                </div>
-
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-sky-50 text-sky-600">
-                      {w.currency || 'USDT'}
-                    </span>
-
-                    <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-500 border border-gray-200">
-                      {w.network || 'TRC20'}
-                    </span>
-
-                    {w.label && (
-                      <span className="text-gray-400 text-xs">
-                        {w.label}
-                      </span>
-                    )}
+          {wallets.map(
+            (w) => (
+              <div
+                key={
+                  w._id ||
+                  w.id
+                }
+                className="bg-white rounded-xl shadow-sm border border-sky-100 p-4 flex items-center justify-between gap-3"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-xl bg-sky-50 flex items-center justify-center flex-shrink-0">
+                    <Wallet className="w-5 h-5 text-sky-500" />
                   </div>
 
-                  <p className="text-gray-800 text-xs font-mono truncate mt-1">
-                    {w.address}
-                  </p>
-                </div>
-              </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-sky-50 text-sky-600">
+                        {w.currency ||
+                          'USDT'}
+                      </span>
 
-              <button
-                onClick={() =>
-                  handleDelete(w._id || w.id)
-                }
-                className="flex-shrink-0 p-2 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
-          ))}
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-500 border border-gray-200">
+                        {w.network ||
+                          'TRC20'}
+                      </span>
+
+                      {w.label && (
+                        <span className="text-gray-400 text-xs">
+                          {w.label}
+                        </span>
+                      )}
+                    </div>
+
+                    <p className="text-gray-800 text-xs font-mono truncate mt-1">
+                      {w.address}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() =>
+                    handleDelete(
+                      w._id ||
+                        w.id
+                    )
+                  }
+                  className="flex-shrink-0 p-2 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            )
+          )}
         </div>
       )}
     </div>
   );
 }
 
-export default function Admin() {
-  const { user, loading: authLoading } = useAuth();
-  const navigate = useNavigate();
+/* =========================================================
+   ADMIN PAGE
+========================================================= */
 
-  const [activeTab, setActiveTab] = useState('users');
-  const [stats, setStats] = useState(null);
-  const [users, setUsers] = useState([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [loading, setLoading] = useState(true);
+export default function Admin() {
+  const {
+    user,
+    loading: authLoading,
+  } = useAuth();
+
+  const navigate =
+    useNavigate();
+
+  const [activeTab, setActiveTab] =
+    useState('users');
+
+  const [stats, setStats] =
+    useState(null);
+
+  const [users, setUsers] =
+    useState([]);
+
+  const [searchQuery, setSearchQuery] =
+    useState('');
+
+  const [loading, setLoading] =
+    useState(true);
 
   useEffect(() => {
     if (
@@ -2950,31 +4501,61 @@ export default function Admin() {
       user &&
       user.role !== 'admin'
     ) {
-      navigate('/dashboard');
+      navigate(
+        '/dashboard'
+      );
     }
-  }, [user, authLoading, navigate]);
+  }, [
+    user,
+    authLoading,
+    navigate,
+  ]);
 
   async function fetchAdminData() {
     setLoading(true);
 
     try {
-      const [statsRes, usersRes] =
-        await Promise.allSettled([
-          api.get('/admin/stats'),
-          api.get('/admin/users'),
-        ]);
+      const [
+        statsRes,
+        usersRes,
+      ] =
+        await Promise.allSettled(
+          [
+            api.get(
+              '/admin/stats'
+            ),
+            api.get(
+              '/admin/users'
+            ),
+          ]
+        );
 
-      if (statsRes.status === 'fulfilled') {
-        setStats(statsRes.value.data);
+      if (
+        statsRes.status ===
+        'fulfilled'
+      ) {
+        setStats(
+          statsRes.value
+            .data
+        );
       }
 
-      if (usersRes.status === 'fulfilled') {
-        const udata = usersRes.value.data;
+      if (
+        usersRes.status ===
+        'fulfilled'
+      ) {
+        const udata =
+          usersRes.value
+            .data;
 
         setUsers(
-          Array.isArray(udata)
+          Array.isArray(
+            udata
+          )
             ? udata
-            : Array.isArray(udata.users)
+            : Array.isArray(
+                udata.users
+              )
             ? udata.users
             : []
         );
@@ -2993,27 +4574,42 @@ export default function Admin() {
     ) {
       fetchAdminData();
     }
-  }, [authLoading, user]);
+  }, [
+    authLoading,
+    user,
+  ]);
 
-  if (authLoading || !user) {
+  if (
+    authLoading ||
+    !user
+  ) {
     return <Spinner />;
   }
 
-  if (user.role !== 'admin') {
+  if (
+    user.role !== 'admin'
+  ) {
     return <Spinner />;
   }
 
-  const filteredUsers = users.filter((u) => {
-    if (!searchQuery) return true;
+  const filteredUsers =
+    users.filter((u) => {
+      if (!searchQuery)
+        return true;
 
-    const q = searchQuery.toLowerCase();
+      const q =
+        searchQuery.toLowerCase();
 
-    return (
-      u.full_name?.toLowerCase().includes(q) ||
-      u.email?.toLowerCase().includes(q) ||
-      u.mobile?.includes(q)
-    );
-  });
+      return (
+        u.full_name
+          ?.toLowerCase()
+          .includes(q) ||
+        u.email
+          ?.toLowerCase()
+          .includes(q) ||
+        u.mobile?.includes(q)
+      );
+    });
 
   return (
     <div className="min-h-screen bg-gray-50 relative overflow-hidden">
@@ -3030,7 +4626,10 @@ export default function Admin() {
             </h1>
 
             <p className="text-gray-400 text-sm">
-              Manage users, transactions, trades, wallets and notifications
+              Manage users,
+              transactions, trades,
+              wallets and
+              notifications
             </p>
           </div>
         </div>
@@ -3056,7 +4655,9 @@ export default function Admin() {
                 />
 
                 <StatCard
-                  icon={ArrowLeftRight}
+                  icon={
+                    ArrowLeftRight
+                  }
                   label="Total Trades"
                   value={
                     stats.total_trades ??
@@ -3089,7 +4690,9 @@ export default function Admin() {
                 />
 
                 <StatCard
-                  icon={TrendingUp}
+                  icon={
+                    TrendingUp
+                  }
                   label="Total Deposits"
                   value={formatCurrency(
                     stats.total_deposits ??
@@ -3100,7 +4703,9 @@ export default function Admin() {
                 />
 
                 <StatCard
-                  icon={TrendingDown}
+                  icon={
+                    TrendingDown
+                  }
                   label="Total Withdrawals"
                   value={formatCurrency(
                     stats.total_withdrawals ??
@@ -3114,35 +4719,46 @@ export default function Admin() {
 
             {/* TABS */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 bg-white p-1.5 rounded-xl shadow-sm border border-sky-100">
-              {TABS.map((tab) => {
-                const TabIcon = tab.icon;
+              {TABS.map(
+                (tab) => {
+                  const TabIcon =
+                    tab.icon;
 
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() =>
-                      setActiveTab(tab.id)
-                    }
-                    className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                      activeTab === tab.id
-                        ? 'bg-sky-50 text-sky-600 shadow-sm'
-                        : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
-                    }`}
-                  >
-                    <TabIcon className="w-4 h-4" />
+                  return (
+                    <button
+                      key={
+                        tab.id
+                      }
+                      onClick={() =>
+                        setActiveTab(
+                          tab.id
+                        )
+                      }
+                      className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                        activeTab ===
+                        tab.id
+                          ? 'bg-sky-50 text-sky-600 shadow-sm'
+                          : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <TabIcon className="w-4 h-4" />
 
-                    <span>
-                      {tab.label}
-                    </span>
-                  </button>
-                );
-              })}
+                      <span>
+                        {
+                          tab.label
+                        }
+                      </span>
+                    </button>
+                  );
+                }
+              )}
             </div>
 
             {/* CONTENT */}
             <div className="animate-fade-in">
               {/* USERS */}
-              {activeTab === 'users' && (
+              {activeTab ===
+                'users' && (
                 <div className="space-y-4">
                   <div className="flex items-center gap-3">
                     <div className="relative flex-1 max-w-md">
@@ -3150,9 +4766,16 @@ export default function Admin() {
 
                       <input
                         type="text"
-                        value={searchQuery}
-                        onChange={(e) =>
-                          setSearchQuery(e.target.value)
+                        value={
+                          searchQuery
+                        }
+                        onChange={(
+                          e
+                        ) =>
+                          setSearchQuery(
+                            e.target
+                              .value
+                          )
                         }
                         placeholder="Search users..."
                         className="w-full bg-white border border-sky-100 rounded-lg pl-10 pr-4 py-2.5 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 placeholder:text-gray-400 shadow-sm"
@@ -3160,25 +4783,37 @@ export default function Admin() {
                     </div>
 
                     <span className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-500 text-xs font-medium border border-gray-200">
-                      {filteredUsers.length} users
+                      {
+                        filteredUsers.length
+                      }{' '}
+                      users
                     </span>
                   </div>
 
                   <div className="space-y-3">
-                    {filteredUsers.map((u) => (
-                      <UserCard
-                        key={u._id || u.id}
-                        user={u}
-                        onRefresh={fetchAdminData}
-                      />
-                    ))}
+                    {filteredUsers.map(
+                      (u) => (
+                        <UserCard
+                          key={
+                            u._id ||
+                            u.id
+                          }
+                          user={u}
+                          onRefresh={
+                            fetchAdminData
+                          }
+                        />
+                      )
+                    )}
 
-                    {filteredUsers.length === 0 && (
+                    {filteredUsers.length ===
+                      0 && (
                       <div className="text-center py-12">
                         <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
 
                         <p className="text-gray-400 text-sm">
-                          No users found
+                          No users
+                          found
                         </p>
                       </div>
                     )}
@@ -3187,30 +4822,41 @@ export default function Admin() {
               )}
 
               {/* VERIFY */}
-              {activeTab === 'verify' && (
+              {activeTab ===
+                'verify' && (
                 <VerifyTab
-                  onRefresh={fetchAdminData}
+                  onRefresh={
+                    fetchAdminData
+                  }
                 />
               )}
 
               {/* TRANSACTIONS */}
-              {activeTab === 'txns' && (
+              {activeTab ===
+                'txns' && (
                 <TransactionsTab />
               )}
 
               {/* TRADES */}
-              {activeTab === 'data' && (
+              {activeTab ===
+                'data' && (
                 <TradeDataTab />
               )}
 
               {/* WALLETS */}
-              {activeTab === 'wallets' && (
-                <WalletsTab users={users} />
+              {activeTab ===
+                'wallets' && (
+                <WalletsTab
+                  users={users}
+                />
               )}
 
               {/* NOTIFICATIONS */}
-              {activeTab === 'notifications' && (
-                <NotificationsTab users={users} />
+              {activeTab ===
+                'notifications' && (
+                <NotificationsTab
+                  users={users}
+                />
               )}
             </div>
           </>
