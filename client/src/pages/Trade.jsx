@@ -75,6 +75,12 @@ const CRYPTO_CONFIG = {
     label: 'Polkadot',
     coinId: 'polkadot',
   },
+    BTS: {
+    color: 'text-indigo-500',
+    bg: 'bg-indigo-500',
+    label: 'BitShares',
+    coinId: 'bitshares',
+  },
 };
 
 const STANDARD_DURATIONS = [
