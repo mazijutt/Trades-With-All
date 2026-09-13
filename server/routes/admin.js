@@ -7,7 +7,6 @@ import { protect, adminOnly } from '../middleware/auth.js';
 
 const router = express.Router();
 
-
 // ==========================================
 // ADMIN STATS
 // ==========================================
@@ -66,7 +65,6 @@ router.get('/stats', protect, adminOnly, async (req, res) => {
   }
 });
 
-
 // ==========================================
 // GET ALL USERS
 // ==========================================
@@ -85,7 +83,6 @@ router.get('/users', protect, adminOnly, async (req, res) => {
       obj.has_withdrawal_password = !!u.withdrawal_password;
       obj.referral_count = (u.referrals || []).length;
 
-      // Freeze information
       obj.balance = Number(u.balance || 0);
       obj.frozen_balance = Number(u.frozen_balance || 0);
       obj.available_balance =
@@ -104,7 +101,6 @@ router.get('/users', protect, adminOnly, async (req, res) => {
     });
   }
 });
-
 
 // ==========================================
 // FREEZE USER AMOUNT
@@ -146,7 +142,6 @@ router.post('/users/:id/freeze', protect, adminOnly, async (req, res) => {
 
     await user.save();
 
-    // Notify user
     try {
       await Notification.create({
         user_id: user._id,
@@ -185,7 +180,6 @@ router.post('/users/:id/freeze', protect, adminOnly, async (req, res) => {
     });
   }
 });
-
 
 // ==========================================
 // UNFREEZE USER AMOUNT
@@ -238,7 +232,6 @@ router.post('/users/:id/unfreeze', protect, adminOnly, async (req, res) => {
 
     await user.save();
 
-    // Notify user
     try {
       await Notification.create({
         user_id: user._id,
@@ -281,7 +274,6 @@ router.post('/users/:id/unfreeze', protect, adminOnly, async (req, res) => {
   }
 });
 
-
 // ==========================================
 // GET ALL TRADES
 // ==========================================
@@ -298,7 +290,6 @@ router.get('/trades', protect, adminOnly, async (req, res) => {
     });
   }
 });
-
 
 // ==========================================
 // CREATE / UPDATE ADMIN
@@ -360,6 +351,4 @@ router.post('/create-admin', async (req, res) => {
   }
 });
 
-
 export default router;
-```
