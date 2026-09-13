@@ -251,7 +251,6 @@ export default function Dashboard() {
       console.error('Failed to refresh user data:', err);
     }
   }
-
 async function fetchPrices() {
   try {
     const { data } = await api.get('/prices/prices');
@@ -267,14 +266,14 @@ async function fetchPrices() {
           raw.change_24h ?? raw.usd_24h_change ?? raw.change ?? 0
         ),
         volume: Number(
-          raw.volume_24h ?? raw.usd_24h_vol ?? raw.volume ?? raw.quote_volume ?? 0
+          raw.volume_24h ??
+            raw.usd_24h_vol ??
+            raw.volume ??
+            raw.quote_volume ??
+            0
         ),
-        high_24h: Number(
-          raw.high_24h ?? raw.high ?? 0
-        ),
-        low_24h: Number(
-          raw.low_24h ?? raw.low ?? 0
-        ),
+        high_24h: Number(raw.high_24h ?? raw.high ?? 0),
+        low_24h: Number(raw.low_24h ?? raw.low ?? 0),
         last_updated: raw.last_updated ?? 0,
       };
     });
@@ -289,11 +288,6 @@ async function fetchPrices() {
     );
   }
 }
-      setPrices(normalized);
-    } catch (err) {
-      console.error('Failed to fetch prices:', err);
-    }
-  }
 
   async function fetchDashboardData() {
     try {
