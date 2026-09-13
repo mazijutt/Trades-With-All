@@ -252,31 +252,43 @@ export default function Dashboard() {
     }
   }
 
-  async function fetchPrices() {
-    try {
-      const { data } = await api.get('/prices/prices');
+async function fetchPrices() {
+  try {
+    const { data } = await api.get('/prices/prices');
 
-      const normalized = {};
+    const normalized = {};
 
-      Object.entries(COINGECKO_MAP).forEach(([symbol, id]) => {
-        const raw = data[id] || {};
+    Object.keys(CRYPTO_CONFIG).forEach((symbol) => {
+      const raw = data?.[symbol] || {};
 
-        normalized[symbol] = {
-          price: raw.usd ?? raw.price ?? raw.last ?? 0,
-          change_24h:
-            raw.usd_24h_change ??
-            raw.change_24h ??
-            raw.change ??
-            0,
-          volume:
-            raw.usd_24h_vol ??
-            raw.volume ??
-            raw.quote_volume ??
-            0,
-          high_24h: raw.usd_24h_high ?? raw.high_24h ?? raw.high ?? 0,
-        };
-      });
+      normalized[symbol] = {
+        price: Number(raw.price ?? raw.usd ?? raw.last ?? 0),
+        change_24h: Number(
+          raw.change_24h ?? raw.usd_24h_change ?? raw.change ?? 0
+        ),
+        volume: Number(
+          raw.volume_24h ?? raw.usd_24h_vol ?? raw.volume ?? raw.quote_volume ?? 0
+        ),
+        high_24h: Number(
+          raw.high_24h ?? raw.high ?? 0
+        ),
+        low_24h: Number(
+          raw.low_24h ?? raw.low ?? 0
+        ),
+        last_updated: raw.last_updated ?? 0,
+      };
+    });
 
+    setPrices(normalized);
+
+    console.log('Live prices loaded:', normalized);
+  } catch (err) {
+    console.error(
+      'Failed to fetch prices:',
+      err.response?.data || err.message
+    );
+  }
+}
       setPrices(normalized);
     } catch (err) {
       console.error('Failed to fetch prices:', err);
