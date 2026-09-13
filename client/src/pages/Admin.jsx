@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -59,6 +59,44 @@ import {
 } from 'lucide-react';
 
 /* =========================================================
+   SAFE HELPERS
+========================================================= */
+
+function asArray(value, keys = []) {
+  if (Array.isArray(value)) {
+    return value;
+  }
+
+  if (value && typeof value === 'object') {
+    for (const key of keys) {
+      if (Array.isArray(value[key])) {
+        return value[key];
+      }
+    }
+  }
+
+  return [];
+}
+
+function num(value, fallback = 0) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function getId(item) {
+  return item?._id || item?.id || '';
+}
+
+function getApiError(err, fallback = 'Something went wrong.') {
+  return (
+    err?.response?.data?.message ||
+    err?.response?.data?.error ||
+    err?.message ||
+    fallback
+  );
+}
+
+/* =========================================================
    TABS
 ========================================================= */
 
@@ -115,13 +153,13 @@ function StatCard({
   return (
     <div
       className={`bg-white rounded-xl shadow-sm border border-sky-100 p-5 transition-colors ${
-        borderColors[color]
+        borderColors[color] || borderColors.sky
       }`}
     >
       <div className="flex items-center justify-between mb-3">
         <div
           className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-            colors[color]
+            colors[color] || colors.sky
           }`}
         >
           <Icon className="w-5 h-5" />
@@ -171,6 +209,7 @@ function Dialog({
           </h3>
 
           <button
+            type="button"
             onClick={onClose}
             className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
           >
@@ -198,16 +237,24 @@ function AmountDialog({
 }) {
   const [amount, setAmount] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   async function handleSubmit() {
     const value = parseFloat(amount);
 
-    if (!value || value <= 0) return;
+    if (!value || value <= 0) {
+      setError('Please enter a valid amount.');
+      return;
+    }
 
     setLoading(true);
+    setError('');
 
     try {
       await onSubmit(value);
+    } catch (err) {
+      console.error(err);
+      setError(getApiError(err));
     } finally {
       setLoading(false);
     }
@@ -233,23 +280,29 @@ function AmountDialog({
               min="0"
               step="0.01"
               value={amount}
-              onChange={(e) =>
-                setAmount(e.target.value)
-              }
+              onChange={(e) => {
+                setAmount(e.target.value);
+                setError('');
+              }}
               placeholder="0.00"
               className="w-full bg-gray-50 border border-gray-200 rounded-lg pl-10 pr-4 py-2.5 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
             />
           </div>
         </div>
 
+        {error && (
+          <div className="bg-red-50 border border-red-100 rounded-lg p-3 text-red-600 text-xs">
+            {error}
+          </div>
+        )}
+
         <button
+          type="button"
           onClick={handleSubmit}
           disabled={loading || !amount}
           className="w-full py-2.5 rounded-lg text-sm font-semibold bg-sky-500 hover:bg-sky-600 text-white transition-colors disabled:opacity-50"
         >
-          {loading
-            ? 'Processing...'
-            : actionLabel}
+          {loading ? 'Processing...' : actionLabel}
         </button>
       </div>
     </Dialog>
@@ -316,18 +369,19 @@ function UserCard({
     useState(false);
 
   const tier = getCreditScoreTier(
-    u.credit_score || 0
+    num(u.credit_score)
   );
 
-  const userId = u._id || u.id;
+  const userId = getId(u);
 
-  const totalBalance = Number(
-    u.balance || 0
+  const totalBalance = Math.max(
+    0,
+    num(u.balance)
   );
 
   const frozenBalance = Math.max(
     0,
-    Number(u.frozen_balance || 0)
+    num(u.frozen_balance)
   );
 
   const availableBalance = Math.max(
@@ -341,17 +395,10 @@ function UserCard({
     try {
       await fn();
       await onRefresh();
-      reset?.();
+      if (reset) reset();
     } catch (err) {
       console.error(err);
-
-      const message =
-        err?.response?.data?.message ||
-        err?.response?.data?.error;
-
-      if (message) {
-        alert(message);
-      }
+      alert(getApiError(err));
     } finally {
       setLoading(false);
     }
@@ -367,12 +414,12 @@ function UserCard({
   }
 
   async function handleBalance() {
-    if (!balanceAmount) return;
+    const amount = parseFloat(balanceAmount);
 
-    const amount =
-      parseFloat(balanceAmount);
-
-    if (!amount || amount <= 0) return;
+    if (!amount || amount <= 0) {
+      alert('Enter a valid amount.');
+      return;
+    }
 
     if (
       balanceAction === 'deduct' &&
@@ -403,8 +450,7 @@ function UserCard({
   }
 
   async function handleFreeze() {
-    const amount =
-      parseFloat(freezeAmount);
+    const amount = parseFloat(freezeAmount);
 
     if (!amount || amount <= 0) {
       alert('Enter a valid freeze amount.');
@@ -434,13 +480,10 @@ function UserCard({
   }
 
   async function handleUnfreeze() {
-    const amount =
-      parseFloat(unfreezeAmount);
+    const amount = parseFloat(unfreezeAmount);
 
     if (!amount || amount <= 0) {
-      alert(
-        'Enter a valid unfreeze amount.'
-      );
+      alert('Enter a valid unfreeze amount.');
       return;
     }
 
@@ -467,7 +510,10 @@ function UserCard({
   }
 
   async function handleLoginPassword() {
-    if (!newPassword) return;
+    if (!newPassword.trim()) {
+      alert('Enter a new password.');
+      return;
+    }
 
     await runAction(
       () =>
@@ -485,7 +531,10 @@ function UserCard({
   }
 
   async function handleWithdrawPassword() {
-    if (!withdrawPassword) return;
+    if (!withdrawPassword.trim()) {
+      alert('Enter a withdrawal password.');
+      return;
+    }
 
     await runAction(
       () =>
@@ -494,7 +543,7 @@ function UserCard({
           {
             withdrawal_password:
               withdrawPassword,
-          },
+          }
         ),
       () => {
         setWithdrawPasswordDialog(false);
@@ -504,17 +553,19 @@ function UserCard({
   }
 
   async function handleCredit() {
-    if (creditScore === '') return;
+    const score = parseInt(creditScore, 10);
+
+    if (!Number.isFinite(score)) {
+      alert('Enter a valid credit score.');
+      return;
+    }
 
     await runAction(
       () =>
         api.post(
           `/users/${userId}/set-credit-score`,
           {
-            score: parseInt(
-              creditScore,
-              10
-            ),
+            score,
           }
         ),
       () => {
@@ -527,38 +578,34 @@ function UserCard({
   return (
     <>
       <div className="bg-white rounded-xl shadow-sm border border-sky-100 p-4 space-y-3">
-        {/* USER HEADER */}
+
+        {/* HEADER */}
         <div className="flex items-start justify-between flex-wrap gap-2">
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-400 to-sky-600 flex items-center justify-center text-sm font-bold text-white flex-shrink-0">
-              {u.full_name?.[0]?.toUpperCase() ||
-                'U'}
+              {u.full_name?.[0]?.toUpperCase() || 'U'}
             </div>
 
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <p className="text-gray-900 font-semibold text-sm truncate">
-                  {u.full_name ||
-                    'Unknown User'}
+                  {u.full_name || 'Unknown User'}
                 </p>
 
                 <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-sky-50 text-sky-600">
-                  {u.role}
+                  {u.role || 'user'}
                 </span>
 
                 <span
                   className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                    u.identity_status ===
-                    'verified'
+                    u.identity_status === 'verified'
                       ? 'bg-emerald-50 text-emerald-600'
-                      : u.identity_status ===
-                        'pending'
+                      : u.identity_status === 'pending'
                       ? 'bg-amber-50 text-amber-600'
                       : 'bg-red-50 text-red-600'
                   }`}
                 >
-                  {u.identity_status ||
-                    'unverified'}
+                  {u.identity_status || 'unverified'}
                 </span>
 
                 {u.has_withdrawal_password ? (
@@ -575,16 +622,14 @@ function UserCard({
               </div>
 
               <p className="text-gray-400 text-xs truncate">
-                {u.email}
+                {u.email || '-'}
               </p>
 
               <p className="flex items-center gap-1 text-gray-400 text-[11px] mt-0.5">
                 <CalendarDays className="w-3 h-3" />
                 Joined{' '}
                 {u.createdAt
-                  ? formatDate(
-                      u.createdAt
-                    )
+                  ? formatDate(u.createdAt)
                   : '-'}
               </p>
             </div>
@@ -593,86 +638,62 @@ function UserCard({
 
         {/* USER INFORMATION */}
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2.5 text-xs pt-2">
-          {/* BALANCE */}
+
           <div className="bg-sky-50/60 rounded-lg p-2.5">
             <span className="text-gray-400">
               Balance
             </span>
-
             <p className="text-gray-900 font-semibold">
-              {formatCurrency(
-                totalBalance
-              )}
+              {formatCurrency(totalBalance)}
             </p>
           </div>
 
-          {/* FROZEN */}
           <div className="bg-blue-50 rounded-lg p-2.5">
             <span className="flex items-center gap-1 text-blue-500">
               <Snowflake className="w-3 h-3" />
               Frozen
             </span>
-
             <p className="text-blue-700 font-semibold">
-              {formatCurrency(
-                frozenBalance
-              )}
+              {formatCurrency(frozenBalance)}
             </p>
           </div>
 
-          {/* AVAILABLE */}
           <div className="bg-emerald-50/70 rounded-lg p-2.5">
             <span className="text-gray-400">
               Available
             </span>
-
             <p className="text-emerald-700 font-semibold">
-              {formatCurrency(
-                availableBalance
-              )}
+              {formatCurrency(availableBalance)}
             </p>
           </div>
 
-          {/* DEPOSITED */}
           <div className="bg-emerald-50/60 rounded-lg p-2.5">
             <span className="text-gray-400">
               Total Deposited
             </span>
-
             <p className="text-emerald-700 font-semibold">
-              {formatCurrency(
-                u.total_deposited || 0
-              )}
+              {formatCurrency(num(u.total_deposited))}
             </p>
           </div>
 
-          {/* WITHDRAWN */}
           <div className="bg-red-50/60 rounded-lg p-2.5">
             <span className="text-gray-400">
               Total Withdrawn
             </span>
-
             <p className="text-red-700 font-semibold">
-              {formatCurrency(
-                u.total_withdrawn || 0
-              )}
+              {formatCurrency(num(u.total_withdrawn))}
             </p>
           </div>
 
-          {/* PROFIT */}
           <div className="bg-blue-50/60 rounded-lg p-2.5">
             <span className="text-gray-400">
               Total Profit
             </span>
-
             <p className="text-blue-700 font-semibold">
-              {formatCurrency(
-                u.total_profit || 0
-              )}
+              {formatCurrency(num(u.total_profit))}
             </p>
           </div>
 
-          {/* CREDIT SCORE */}
           <div className="bg-violet-50/60 rounded-lg p-2.5">
             <span className="text-gray-400">
               Credit Score
@@ -680,86 +701,77 @@ function UserCard({
 
             <div className="flex items-center gap-1.5">
               <p className="text-gray-900 font-semibold">
-                {u.credit_score || 0}
+                {num(u.credit_score)}
               </p>
 
               <span
-                className={`px-1 py-0.5 rounded text-[9px] font-medium ${tier.bg} ${tier.color}`}
+                className={`px-1 py-0.5 rounded text-[9px] font-medium ${
+                  tier?.bg || 'bg-gray-100'
+                } ${tier?.color || 'text-gray-500'}`}
               >
-                {tier.label}
+                {tier?.label || 'New'}
               </span>
             </div>
           </div>
 
-          {/* LANGUAGE */}
           <div className="bg-gray-50 rounded-lg p-2.5">
             <span className="flex items-center gap-1 text-gray-400">
               <Languages className="w-3 h-3" />
               Language
             </span>
-
             <p className="text-gray-800 font-medium">
               {u.language || 'en'}
             </p>
           </div>
 
-          {/* DOB */}
           <div className="bg-gray-50 rounded-lg p-2.5">
             <span className="text-gray-400">
               Date of Birth
             </span>
-
             <p className="text-gray-800 font-medium">
-              {u.date_of_birth || '-'}
+              {u.date_of_birth || u.dob || '-'}
             </p>
           </div>
 
-          {/* MOBILE */}
           <div className="bg-gray-50 rounded-lg p-2.5">
             <span className="text-gray-400">
               Mobile Number
             </span>
-
             <p className="text-gray-800 font-medium">
-              {(u.country_code ||
-                '') +
-                (u.mobile
-                  ? ` ${u.mobile}`
-                  : u.mobile || '-')}
+              {u.country_code || ''}
+              {u.mobile
+                ? ` ${u.mobile}`
+                : '-'}
             </p>
           </div>
 
-          {/* REFERRAL */}
           <div className="bg-gray-50 rounded-lg p-2.5">
             <span className="text-gray-400">
               Referral Code
             </span>
 
             <p className="text-gray-800 font-medium font-mono text-[11px]">
-              {u.referral_code ||
-                '-'}
+              {u.referral_code || '-'}
             </p>
 
             <p className="text-gray-400 text-[10px] mt-0.5">
-              {u.referral_count || 0}{' '}
-              referred
-              {u.referral_earnings > 0 &&
-                ` · $${u.referral_earnings} earned`}
+              {num(u.referral_count)} referred
+              {num(u.referral_earnings) > 0 &&
+                ` · $${num(
+                  u.referral_earnings
+                )} earned`}
             </p>
 
             {u.referred_by && (
               <p className="text-gray-400 text-[10px] mt-0.5">
                 From:{' '}
-                {u.referred_by
-                  .full_name ||
-                  u.referred_by
-                    .email ||
+                {u.referred_by.full_name ||
+                  u.referred_by.email ||
                   '-'}
               </p>
             )}
           </div>
 
-          {/* BANK */}
           <div className="bg-gray-50 rounded-lg p-2.5">
             <span className="text-gray-400">
               Bank Account
@@ -769,14 +781,13 @@ function UserCard({
             u.bank_account_number ? (
               <>
                 <p className="text-gray-800 font-medium text-[11px]">
-                  {u.bank_name ||
-                    '-'}
+                  {u.bank_name || '-'}
                 </p>
 
                 <p className="text-gray-400 text-[10px] mt-0.5">
-                  {u.bank_account_holder}{' '}
+                  {u.bank_account_holder || ''}{' '}
                   ·{' '}
-                  {u.bank_account_number}
+                  {u.bank_account_number || ''}
                   {u.bank_ifsc
                     ? ` · ${u.bank_ifsc}`
                     : ''}
@@ -792,61 +803,51 @@ function UserCard({
 
         {/* TOGGLES */}
         <div className="flex items-center gap-2 flex-wrap pt-2 border-t border-gray-100">
+
           <button
+            type="button"
             onClick={() =>
-              handleToggle(
-                'trading_enabled'
-              )
+              handleToggle('trading_enabled')
             }
             disabled={loading}
             className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 ${
-              u.trading_enabled
+              u.trading_enabled !== false
                 ? 'bg-emerald-50 text-emerald-700'
                 : 'bg-gray-100 text-gray-500'
             }`}
           >
-            {u.trading_enabled ? (
+            {u.trading_enabled !== false ? (
               <ToggleRight className="w-4 h-4 text-emerald-600" />
             ) : (
               <ToggleLeft className="w-4 h-4 text-gray-400" />
             )}
-
-            Trading{' '}
-            {u.trading_enabled
-              ? 'ON'
-              : 'OFF'}
+            Trading {u.trading_enabled !== false ? 'ON' : 'OFF'}
           </button>
 
           <button
+            type="button"
             onClick={() =>
-              handleToggle(
-                'withdrawal_enabled'
-              )
+              handleToggle('withdrawal_enabled')
             }
             disabled={loading}
             className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 ${
-              u.withdrawal_enabled
+              u.withdrawal_enabled !== false
                 ? 'bg-emerald-50 text-emerald-700'
                 : 'bg-gray-100 text-gray-500'
             }`}
           >
-            {u.withdrawal_enabled ? (
+            {u.withdrawal_enabled !== false ? (
               <ToggleRight className="w-4 h-4 text-emerald-600" />
             ) : (
               <ToggleLeft className="w-4 h-4 text-gray-400" />
             )}
-
-            Withdraw{' '}
-            {u.withdrawal_enabled
-              ? 'ON'
-              : 'OFF'}
+            Withdraw {u.withdrawal_enabled !== false ? 'ON' : 'OFF'}
           </button>
 
           <button
+            type="button"
             onClick={() =>
-              handleToggle(
-                'premium_enabled'
-              )
+              handleToggle('premium_enabled')
             }
             disabled={loading}
             className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 ${
@@ -862,20 +863,16 @@ function UserCard({
                   : 'text-gray-400'
               }`}
             />
-
-            Premium{' '}
-            {u.premium_enabled
-              ? 'ON'
-              : 'OFF'}
+            Premium {u.premium_enabled ? 'ON' : 'OFF'}
           </button>
         </div>
 
         {/* BALANCE ACTIONS */}
         <div className="flex items-center gap-2 flex-wrap pt-2 border-t border-gray-100">
+
           <button
-            onClick={() =>
-              setDepositDialog(true)
-            }
+            type="button"
+            onClick={() => setDepositDialog(true)}
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-emerald-50 hover:bg-emerald-100 text-emerald-700 transition-colors"
           >
             <Banknote className="w-4 h-4" />
@@ -883,9 +880,8 @@ function UserCard({
           </button>
 
           <button
-            onClick={() =>
-              setWithdrawDialog(true)
-            }
+            type="button"
+            onClick={() => setWithdrawDialog(true)}
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-red-50 hover:bg-red-100 text-red-700 transition-colors"
           >
             <Wallet className="w-4 h-4" />
@@ -893,9 +889,8 @@ function UserCard({
           </button>
 
           <button
-            onClick={() =>
-              setProfitDialog(true)
-            }
+            type="button"
+            onClick={() => setProfitDialog(true)}
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-blue-50 hover:bg-blue-100 text-blue-700 transition-colors"
           >
             <HandCoins className="w-4 h-4" />
@@ -903,37 +898,28 @@ function UserCard({
           </button>
 
           <button
-            onClick={() =>
-              setBalanceDialog(true)
-            }
+            type="button"
+            onClick={() => setBalanceDialog(true)}
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors"
           >
             <DollarSign className="w-4 h-4 text-sky-500" />
             Balance
           </button>
 
-          {/* FREEZE */}
           <button
-            onClick={() =>
-              setFreezeDialog(true)
-            }
-            disabled={
-              availableBalance <= 0
-            }
+            type="button"
+            onClick={() => setFreezeDialog(true)}
+            disabled={loading || availableBalance <= 0}
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-blue-50 hover:bg-blue-100 text-blue-700 transition-colors disabled:opacity-40"
           >
             <Snowflake className="w-4 h-4" />
             Freeze
           </button>
 
-          {/* UNFREEZE */}
           <button
-            onClick={() =>
-              setUnfreezeDialog(true)
-            }
-            disabled={
-              frozenBalance <= 0
-            }
+            type="button"
+            onClick={() => setUnfreezeDialog(true)}
+            disabled={loading || frozenBalance <= 0}
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-amber-50 hover:bg-amber-100 text-amber-700 transition-colors disabled:opacity-40"
           >
             <Unlock className="w-4 h-4" />
@@ -941,9 +927,8 @@ function UserCard({
           </button>
 
           <button
-            onClick={() =>
-              setCreditDialog(true)
-            }
+            type="button"
+            onClick={() => setCreditDialog(true)}
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors"
           >
             <Scale className="w-4 h-4 text-cyan-500" />
@@ -951,11 +936,8 @@ function UserCard({
           </button>
 
           <button
-            onClick={() =>
-              setLoginPasswordDialog(
-                true
-              )
-            }
+            type="button"
+            onClick={() => setLoginPasswordDialog(true)}
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors"
           >
             <Lock className="w-4 h-4 text-violet-500" />
@@ -963,11 +945,8 @@ function UserCard({
           </button>
 
           <button
-            onClick={() =>
-              setWithdrawPasswordDialog(
-                true
-              )
-            }
+            type="button"
+            onClick={() => setWithdrawPasswordDialog(true)}
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors"
           >
             <KeyRound className="w-4 h-4 text-amber-500" />
@@ -976,18 +955,17 @@ function UserCard({
         </div>
       </div>
 
-      {/* =====================================================
-          BALANCE DIALOG
-      ===================================================== */}
-
+      {/* BALANCE DIALOG */}
       <Dialog
         open={balanceDialog}
-        onClose={() =>
-          setBalanceDialog(false)
-        }
+        onClose={() => {
+          setBalanceDialog(false);
+          setBalanceAmount('');
+        }}
         title="Adjust Balance"
       >
         <div className="space-y-4">
+
           <div>
             <label className="text-gray-400 text-xs font-medium uppercase tracking-wider mb-2 block">
               Action
@@ -995,14 +973,10 @@ function UserCard({
 
             <div className="flex gap-2">
               <button
-                onClick={() =>
-                  setBalanceAction(
-                    'add'
-                  )
-                }
+                type="button"
+                onClick={() => setBalanceAction('add')}
                 className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${
-                  balanceAction ===
-                  'add'
+                  balanceAction === 'add'
                     ? 'bg-emerald-50 border-emerald-200 text-emerald-600'
                     : 'bg-gray-50 border-gray-200 text-gray-400'
                 }`}
@@ -1011,14 +985,10 @@ function UserCard({
               </button>
 
               <button
-                onClick={() =>
-                  setBalanceAction(
-                    'deduct'
-                  )
-                }
+                type="button"
+                onClick={() => setBalanceAction('deduct')}
                 className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${
-                  balanceAction ===
-                  'deduct'
+                  balanceAction === 'deduct'
                     ? 'bg-red-50 border-red-200 text-red-600'
                     : 'bg-gray-50 border-gray-200 text-gray-400'
                 }`}
@@ -1039,44 +1009,32 @@ function UserCard({
               step="0.01"
               value={balanceAmount}
               onChange={(e) =>
-                setBalanceAmount(
-                  e.target.value
-                )
+                setBalanceAmount(e.target.value)
               }
               placeholder="0.00"
               className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
             />
 
-            {balanceAction ===
-              'deduct' && (
+            {balanceAction === 'deduct' && (
               <p className="text-gray-400 text-[11px] mt-1">
                 Available balance:{' '}
-                {formatCurrency(
-                  availableBalance
-                )}
+                {formatCurrency(availableBalance)}
               </p>
             )}
           </div>
 
           <button
+            type="button"
             onClick={handleBalance}
-            disabled={
-              loading ||
-              !balanceAmount
-            }
+            disabled={loading || !balanceAmount}
             className="w-full py-2.5 rounded-lg text-sm font-semibold bg-sky-500 hover:bg-sky-600 text-white transition-colors disabled:opacity-50"
           >
-            {loading
-              ? 'Processing...'
-              : 'Confirm'}
+            {loading ? 'Processing...' : 'Confirm'}
           </button>
         </div>
       </Dialog>
 
-      {/* =====================================================
-          FREEZE DIALOG
-      ===================================================== */}
-
+      {/* FREEZE */}
       <Dialog
         open={freezeDialog}
         onClose={() => {
@@ -1086,6 +1044,7 @@ function UserCard({
         title="Freeze User Balance"
       >
         <div className="space-y-4">
+
           <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
             <div className="flex items-start gap-3">
               <Snowflake className="w-5 h-5 text-blue-500 flex-shrink-0" />
@@ -1096,10 +1055,7 @@ function UserCard({
                 </p>
 
                 <p className="text-blue-600 text-xs mt-1">
-                  Frozen funds will remain in the
-                  user's total balance but will not
-                  be available for trading or
-                  withdrawal.
+                  Frozen funds remain in total balance but cannot be used for trading or withdrawal.
                 </p>
               </div>
             </div>
@@ -1110,11 +1066,8 @@ function UserCard({
               <p className="text-gray-400 text-[10px] uppercase">
                 Total Balance
               </p>
-
               <p className="text-gray-900 font-semibold text-sm mt-1">
-                {formatCurrency(
-                  totalBalance
-                )}
+                {formatCurrency(totalBalance)}
               </p>
             </div>
 
@@ -1122,68 +1075,46 @@ function UserCard({
               <p className="text-emerald-600 text-[10px] uppercase">
                 Available
               </p>
-
               <p className="text-emerald-700 font-semibold text-sm mt-1">
-                {formatCurrency(
-                  availableBalance
-                )}
+                {formatCurrency(availableBalance)}
               </p>
             </div>
           </div>
 
-          <div>
-            <label className="text-gray-400 text-xs font-medium uppercase tracking-wider mb-2 block">
-              Freeze Amount (USDT)
-            </label>
+          <input
+            type="number"
+            min="0"
+            max={availableBalance}
+            step="0.01"
+            value={freezeAmount}
+            onChange={(e) =>
+              setFreezeAmount(e.target.value)
+            }
+            placeholder="Freeze amount"
+            className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
 
-            <input
-              type="number"
-              min="0"
-              max={availableBalance}
-              step="0.01"
-              value={freezeAmount}
-              onChange={(e) =>
-                setFreezeAmount(
-                  e.target.value
-                )
-              }
-              placeholder="0.00"
-              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-
-            <p className="text-gray-400 text-[11px] mt-1">
-              Maximum:{' '}
-              {formatCurrency(
-                availableBalance
-              )}
-            </p>
-          </div>
+          <p className="text-gray-400 text-[11px]">
+            Maximum: {formatCurrency(availableBalance)}
+          </p>
 
           <button
+            type="button"
             onClick={handleFreeze}
-            disabled={
-              loading ||
-              !freezeAmount
-            }
-            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold bg-blue-500 hover:bg-blue-600 text-white transition-colors disabled:opacity-50"
+            disabled={loading || !freezeAmount}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold bg-blue-500 hover:bg-blue-600 text-white disabled:opacity-50"
           >
             {loading ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
               <Snowflake className="w-4 h-4" />
             )}
-
-            {loading
-              ? 'Freezing...'
-              : 'Freeze Amount'}
+            {loading ? 'Freezing...' : 'Freeze Amount'}
           </button>
         </div>
       </Dialog>
 
-      {/* =====================================================
-          UNFREEZE DIALOG
-      ===================================================== */}
-
+      {/* UNFREEZE */}
       <Dialog
         open={unfreezeDialog}
         onClose={() => {
@@ -1193,6 +1124,7 @@ function UserCard({
         title="Unfreeze User Balance"
       >
         <div className="space-y-4">
+
           <div className="bg-amber-50 border border-amber-100 rounded-xl p-4">
             <div className="flex items-start gap-3">
               <Unlock className="w-5 h-5 text-amber-500 flex-shrink-0" />
@@ -1203,8 +1135,7 @@ function UserCard({
                 </p>
 
                 <p className="text-amber-600 text-xs mt-1">
-                  Unfreezing will make the selected
-                  amount available again for the user.
+                  Unfreezing makes the selected amount available again.
                 </p>
               </div>
             </div>
@@ -1216,149 +1147,99 @@ function UserCard({
             </p>
 
             <p className="text-blue-700 font-semibold text-lg mt-1">
-              {formatCurrency(
-                frozenBalance
-              )}
+              {formatCurrency(frozenBalance)}
             </p>
           </div>
 
-          <div>
-            <label className="text-gray-400 text-xs font-medium uppercase tracking-wider mb-2 block">
-              Unfreeze Amount (USDT)
-            </label>
+          <input
+            type="number"
+            min="0"
+            max={frozenBalance}
+            step="0.01"
+            value={unfreezeAmount}
+            onChange={(e) =>
+              setUnfreezeAmount(e.target.value)
+            }
+            placeholder="Unfreeze amount"
+            className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+          />
 
-            <input
-              type="number"
-              min="0"
-              max={frozenBalance}
-              step="0.01"
-              value={unfreezeAmount}
-              onChange={(e) =>
-                setUnfreezeAmount(
-                  e.target.value
-                )
-              }
-              placeholder="0.00"
-              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
-            />
-
-            <p className="text-gray-400 text-[11px] mt-1">
-              Maximum:{' '}
-              {formatCurrency(
-                frozenBalance
-              )}
-            </p>
-          </div>
+          <p className="text-gray-400 text-[11px]">
+            Maximum: {formatCurrency(frozenBalance)}
+          </p>
 
           <button
+            type="button"
             onClick={handleUnfreeze}
-            disabled={
-              loading ||
-              !unfreezeAmount
-            }
-            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold bg-amber-500 hover:bg-amber-600 text-white transition-colors disabled:opacity-50"
+            disabled={loading || !unfreezeAmount}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold bg-amber-500 hover:bg-amber-600 text-white disabled:opacity-50"
           >
             {loading ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
               <Unlock className="w-4 h-4" />
             )}
-
-            {loading
-              ? 'Unfreezing...'
-              : 'Unfreeze Amount'}
+            {loading ? 'Unfreezing...' : 'Unfreeze Amount'}
           </button>
         </div>
       </Dialog>
 
-      {/* =====================================================
-          LOGIN PASSWORD
-      ===================================================== */}
-
+      {/* LOGIN PASSWORD */}
       <Dialog
         open={loginPasswordDialog}
-        onClose={() =>
-          setLoginPasswordDialog(false)
-        }
+        onClose={() => {
+          setLoginPasswordDialog(false);
+          setNewPassword('');
+        }}
         title="Set Login Password"
       >
         <div className="space-y-4">
-          <div>
-            <label className="text-gray-400 text-xs font-medium uppercase tracking-wider mb-2 block">
-              New Login Password
-            </label>
-
-            <input
-              type="password"
-              value={newPassword}
-              onChange={(e) =>
-                setNewPassword(
-                  e.target.value
-                )
-              }
-              placeholder="Enter new login password"
-              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
-            />
-          </div>
+          <input
+            type="password"
+            value={newPassword}
+            onChange={(e) =>
+              setNewPassword(e.target.value)
+            }
+            placeholder="Enter new login password"
+            className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+          />
 
           <button
-            onClick={
-              handleLoginPassword
-            }
-            disabled={
-              loading ||
-              !newPassword
-            }
-            className="w-full py-2.5 rounded-lg text-sm font-semibold bg-sky-500 hover:bg-sky-600 text-white transition-colors disabled:opacity-50"
+            type="button"
+            onClick={handleLoginPassword}
+            disabled={loading || !newPassword}
+            className="w-full py-2.5 rounded-lg text-sm font-semibold bg-sky-500 text-white disabled:opacity-50"
           >
-            {loading
-              ? 'Setting...'
-              : 'Set Login Password'}
+            {loading ? 'Setting...' : 'Set Login Password'}
           </button>
         </div>
       </Dialog>
 
-      {/* =====================================================
-          WITHDRAWAL PASSWORD
-      ===================================================== */}
-
+      {/* WITHDRAWAL PASSWORD */}
       <Dialog
         open={withdrawPasswordDialog}
-        onClose={() =>
-          setWithdrawPasswordDialog(
-            false
-          )
-        }
+        onClose={() => {
+          setWithdrawPasswordDialog(false);
+          setWithdrawPassword('');
+        }}
         title="Set Withdrawal Password"
       >
         <div className="space-y-4">
-          <div>
-            <label className="text-gray-400 text-xs font-medium uppercase tracking-wider mb-2 block">
-              New Withdrawal Password
-            </label>
-
-            <input
-              type="password"
-              value={withdrawPassword}
-              onChange={(e) =>
-                setWithdrawPassword(
-                  e.target.value
-                )
-              }
-              placeholder="Enter new withdrawal password"
-              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
-            />
-          </div>
+          <input
+            type="password"
+            value={withdrawPassword}
+            onChange={(e) =>
+              setWithdrawPassword(e.target.value)
+            }
+            placeholder="Enter new withdrawal password"
+            className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+          />
 
           <button
-            onClick={
-              handleWithdrawPassword
-            }
-            disabled={
-              loading ||
-              !withdrawPassword
-            }
-            className="w-full py-2.5 rounded-lg text-sm font-semibold bg-sky-500 hover:bg-sky-600 text-white transition-colors disabled:opacity-50"
+            type="button"
+            onClick={handleWithdrawPassword}
+            disabled={loading || !withdrawPassword}
+            className="w-full py-2.5 rounded-lg text-sm font-semibold bg-sky-500 text-white disabled:opacity-50"
           >
             {loading
               ? 'Setting...'
@@ -1367,35 +1248,27 @@ function UserCard({
         </div>
       </Dialog>
 
-      {/* =====================================================
-          CREDIT SCORE
-      ===================================================== */}
-
+      {/* CREDIT SCORE */}
       <Dialog
         open={creditDialog}
-        onClose={() =>
-          setCreditDialog(false)
-        }
+        onClose={() => {
+          setCreditDialog(false);
+          setCreditScore('');
+        }}
         title="Set Credit Score"
       >
         <div className="space-y-4">
-          <div>
-            <label className="text-gray-400 text-xs font-medium uppercase tracking-wider mb-2 block">
-              Credit Score
-            </label>
 
-            <input
-              type="number"
-              value={creditScore}
-              onChange={(e) =>
-                setCreditScore(
-                  e.target.value
-                )
-              }
-              placeholder="100"
-              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
-            />
-          </div>
+          <input
+            type="number"
+            min="0"
+            value={creditScore}
+            onChange={(e) =>
+              setCreditScore(e.target.value)
+            }
+            placeholder="100"
+            className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+          />
 
           <div className="bg-gray-50 rounded-lg p-3">
             <p className="text-gray-400 text-xs mb-2">
@@ -1404,85 +1277,51 @@ function UserCard({
 
             <div className="space-y-1 text-xs">
               <div className="flex justify-between">
-                <span className="text-cyan-600">
-                  Platinum
-                </span>
-
-                <span className="text-gray-400">
-                  &ge; 800
-                </span>
+                <span className="text-cyan-600">Platinum</span>
+                <span className="text-gray-400">≥ 800</span>
               </div>
 
               <div className="flex justify-between">
-                <span className="text-sky-600">
-                  VIP
-                </span>
-
-                <span className="text-gray-400">
-                  &ge; 600
-                </span>
+                <span className="text-sky-600">VIP</span>
+                <span className="text-gray-400">≥ 600</span>
               </div>
 
               <div className="flex justify-between">
-                <span className="text-emerald-600">
-                  Trusted
-                </span>
-
-                <span className="text-gray-400">
-                  &ge; 400
-                </span>
+                <span className="text-emerald-600">Trusted</span>
+                <span className="text-gray-400">≥ 400</span>
               </div>
 
               <div className="flex justify-between">
-                <span className="text-blue-600">
-                  Regular
-                </span>
-
-                <span className="text-gray-400">
-                  &ge; 200
-                </span>
+                <span className="text-blue-600">Regular</span>
+                <span className="text-gray-400">≥ 200</span>
               </div>
 
               <div className="flex justify-between">
-                <span className="text-gray-500">
-                  New
-                </span>
-
-                <span className="text-gray-400">
-                  &lt; 200
-                </span>
+                <span className="text-gray-500">New</span>
+                <span className="text-gray-400">&lt; 200</span>
               </div>
             </div>
           </div>
 
           <button
+            type="button"
             onClick={handleCredit}
-            disabled={
-              loading ||
-              creditScore === ''
-            }
-            className="w-full py-2.5 rounded-lg text-sm font-semibold bg-sky-500 hover:bg-sky-600 text-white transition-colors disabled:opacity-50"
+            disabled={loading || creditScore === ''}
+            className="w-full py-2.5 rounded-lg text-sm font-semibold bg-sky-500 text-white disabled:opacity-50"
           >
-            {loading
-              ? 'Updating...'
-              : 'Set Credit Score'}
+            {loading ? 'Updating...' : 'Set Credit Score'}
           </button>
         </div>
       </Dialog>
 
-      {/* =====================================================
-          DEPOSIT
-      ===================================================== */}
-
+      {/* DEPOSIT */}
       {depositDialog && (
         <AmountDialog
           title="Add to Total Deposited"
           label="Amount (USDT)"
           icon={Banknote}
           actionLabel="Add Deposit"
-          onClose={() =>
-            setDepositDialog(false)
-          }
+          onClose={() => setDepositDialog(false)}
           onSubmit={async (amount) => {
             await api.post(
               `/users/${userId}/add-deposit`,
@@ -1490,25 +1329,19 @@ function UserCard({
             );
 
             setDepositDialog(false);
-
             await onRefresh();
           }}
         />
       )}
 
-      {/* =====================================================
-          WITHDRAWAL
-      ===================================================== */}
-
+      {/* WITHDRAWAL */}
       {withdrawDialog && (
         <AmountDialog
           title="Add to Total Withdrawn"
           label="Amount (USDT)"
           icon={Wallet}
           actionLabel="Add Withdrawal"
-          onClose={() =>
-            setWithdrawDialog(false)
-          }
+          onClose={() => setWithdrawDialog(false)}
           onSubmit={async (amount) => {
             await api.post(
               `/users/${userId}/add-withdrawal`,
@@ -1516,25 +1349,19 @@ function UserCard({
             );
 
             setWithdrawDialog(false);
-
             await onRefresh();
           }}
         />
       )}
 
-      {/* =====================================================
-          PROFIT
-      ===================================================== */}
-
+      {/* PROFIT */}
       {profitDialog && (
         <AmountDialog
           title="Add to Total Profit"
           label="Amount (USDT)"
           icon={HandCoins}
           actionLabel="Add Profit"
-          onClose={() =>
-            setProfitDialog(false)
-          }
+          onClose={() => setProfitDialog(false)}
           onSubmit={async (amount) => {
             await api.post(
               `/users/${userId}/add-profit`,
@@ -1542,7 +1369,6 @@ function UserCard({
             );
 
             setProfitDialog(false);
-
             await onRefresh();
           }}
         />
@@ -1558,67 +1384,50 @@ function UserCard({
 function VerifyTab({
   onRefresh,
 }) {
-  const [subTab, setSubTab] =
-    useState('pending');
-
-  const [users, setUsers] =
-    useState([]);
-
-  const [loading, setLoading] =
-    useState(true);
+  const [subTab, setSubTab] = useState('pending');
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [actionId, setActionId] = useState(null);
 
   const counts = {
     pending: users.filter(
-      (u) =>
-        u.identity_status ===
-        'pending'
+      (u) => u.identity_status === 'pending'
     ).length,
 
     rejected: users.filter(
       (u) =>
-        (u.identity_status ===
-          'unverified' ||
-          u.identity_status ===
-            'rejected') &&
-        u.identity_submitted_at
+        u.identity_status === 'rejected'
     ).length,
 
     all: users.length,
   };
 
-  async function fetchUsers() {
+  const fetchUsers = useCallback(async () => {
     setLoading(true);
 
     try {
       const { data } =
-        await api.get(
-          '/admin/users'
-        );
+        await api.get('/admin/users');
 
       setUsers(
-        Array.isArray(data)
-          ? data
-          : Array.isArray(
-              data.users
-            )
-          ? data.users
-          : []
+        asArray(data, ['users', 'data'])
       );
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
     fetchUsers();
-  }, []);
+  }, [fetchUsers]);
 
-  async function handleVerify(
-    id,
-    status
-  ) {
+  async function handleVerify(id, status) {
+    if (!id) return;
+
+    setActionId(id);
+
     try {
       await api.post(
         `/users/${id}/verify`,
@@ -1631,42 +1440,31 @@ function VerifyTab({
       console.error(err);
 
       alert(
-        err?.response?.data
-          ?.message ||
+        getApiError(
+          err,
           'Verification action failed.'
+        )
       );
+    } finally {
+      setActionId(null);
     }
   }
 
-  const filtered = users.filter(
-    (u) => {
-      if (
-        subTab === 'pending'
-      ) {
-        return (
-          u.identity_status ===
-          'pending'
-        );
-      }
-
-      if (
-        subTab === 'rejected'
-      ) {
-        return (
-          (u.identity_status ===
-            'unverified' ||
-            u.identity_status ===
-              'rejected') &&
-          u.identity_submitted_at
-        );
-      }
-
-      return true;
+  const filtered = users.filter((u) => {
+    if (subTab === 'pending') {
+      return u.identity_status === 'pending';
     }
-  );
+
+    if (subTab === 'rejected') {
+      return u.identity_status === 'rejected';
+    }
+
+    return true;
+  });
 
   return (
     <div className="space-y-4">
+
       <div className="flex gap-2 flex-wrap">
         {[
           'pending',
@@ -1674,10 +1472,9 @@ function VerifyTab({
           'all',
         ].map((tab) => (
           <button
+            type="button"
             key={tab}
-            onClick={() =>
-              setSubTab(tab)
-            }
+            onClick={() => setSubTab(tab)}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors capitalize ${
               subTab === tab
                 ? 'bg-sky-50 text-sky-600 border border-sky-200'
@@ -1693,102 +1490,109 @@ function VerifyTab({
         <div className="flex justify-center py-12">
           <div className="w-8 h-8 border-4 border-sky-200 border-t-sky-500 rounded-full animate-spin" />
         </div>
-      ) : filtered.length ===
-        0 ? (
+      ) : filtered.length === 0 ? (
         <div className="text-center py-12">
           <BadgeCheck className="w-12 h-12 text-gray-300 mx-auto mb-3" />
 
           <p className="text-gray-400 text-sm">
-            No verification
-            requests
+            No verification requests
           </p>
         </div>
       ) : (
         <div className="space-y-3">
-          {filtered.map((u) => (
-            <div
-              key={
-                u._id || u.id
-              }
-              className="bg-white rounded-xl shadow-sm border border-sky-100 p-4"
-            >
-              <div className="flex items-start justify-between gap-4 flex-wrap">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <p className="text-gray-900 font-semibold text-sm">
-                      {u.full_name}
+          {filtered.map((u) => {
+            const id = getId(u);
+            const busy = actionId === id;
+
+            return (
+              <div
+                key={id}
+                className="bg-white rounded-xl shadow-sm border border-sky-100 p-4"
+              >
+                <div className="flex items-start justify-between gap-4 flex-wrap">
+
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <p className="text-gray-900 font-semibold text-sm">
+                        {u.full_name || 'Unknown User'}
+                      </p>
+
+                      <span
+                        className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                          u.identity_status === 'verified'
+                            ? 'bg-emerald-50 text-emerald-600'
+                            : u.identity_status === 'pending'
+                            ? 'bg-amber-50 text-amber-600'
+                            : 'bg-red-50 text-red-600'
+                        }`}
+                      >
+                        {u.identity_status || 'unverified'}
+                      </span>
+                    </div>
+
+                    <p className="text-gray-400 text-xs">
+                      {u.email || '-'}
                     </p>
 
-                    <span
-                      className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                        u.identity_status ===
-                        'verified'
-                          ? 'bg-emerald-50 text-emerald-600'
-                          : u.identity_status ===
-                            'pending'
-                          ? 'bg-amber-50 text-amber-600'
-                          : 'bg-red-50 text-red-600'
-                      }`}
-                    >
-                      {
-                        u.identity_status
-                      }
-                    </span>
+                    {(u.dob || u.date_of_birth) && (
+                      <p className="text-gray-400 text-xs">
+                        DOB: {u.dob || u.date_of_birth}
+                      </p>
+                    )}
+
+                    {u.mobile && (
+                      <p className="text-gray-400 text-xs">
+                        Mobile: {u.mobile}
+                      </p>
+                    )}
+
+                    {u.identity_submitted_at && (
+                      <p className="text-gray-400 text-[11px]">
+                        Submitted:{' '}
+                        {formatDate(
+                          u.identity_submitted_at
+                        )}
+                      </p>
+                    )}
                   </div>
 
-                  <p className="text-gray-400 text-xs">
-                    {u.email}
-                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() =>
+                        handleVerify(id, 'verified')
+                      }
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-50 text-emerald-600 hover:bg-emerald-100 disabled:opacity-50"
+                    >
+                      {busy ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <CheckCircle className="w-3.5 h-3.5" />
+                      )}
+                      Verify
+                    </button>
 
-                  {(u.dob ||
-                    u.date_of_birth) && (
-                    <p className="text-gray-400 text-xs">
-                      DOB:{' '}
-                      {u.dob ||
-                        u.date_of_birth}
-                    </p>
-                  )}
-
-                  {u.mobile && (
-                    <p className="text-gray-400 text-xs">
-                      Mobile:{' '}
-                      {u.mobile}
-                    </p>
-                  )}
-                </div>
-
-                <div className="flex gap-2">
-                  <button
-                    onClick={() =>
-                      handleVerify(
-                        u._id ||
-                          u.id,
-                        'verified'
-                      )
-                    }
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors"
-                  >
-                    <CheckCircle className="w-3.5 h-3.5" />
-                    Verify
-                  </button>
-
-                  <button
-                    onClick={() =>
-                      handleVerify(
-                        u._id ||
-                          u.id,
-                        'rejected'
-                      )
-                    }
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
-                  >
-                    <XCircle className="w-3.5 h-3.5" />
-                    Reject
-                  </button>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() =>
+                        handleVerify(id, 'rejected')
+                      }
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-50 text-red-600 hover:bg-red-100 disabled:opacity-50"
+                    >
+                      {busy ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <XCircle className="w-3.5 h-3.5" />
+                      )}
+                      Reject
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
@@ -1800,63 +1604,56 @@ function VerifyTab({
 ========================================================= */
 
 function TransactionsTab() {
-  const [subTab, setSubTab] =
-    useState('pending');
+  const [subTab, setSubTab] = useState('pending');
+  const [transactions, setTransactions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [actionId, setActionId] = useState(null);
 
-  const [transactions, setTransactions] =
-    useState([]);
-
-  const [loading, setLoading] =
-    useState(true);
-
-  const counts = {
-    pending: transactions.filter(
-      (t) =>
-        t.status === 'pending'
-    ).length,
-
-    completed:
-      transactions.filter(
-        (t) =>
-          t.status ===
-            'completed' ||
-          t.status ===
-            'approved'
-      ).length,
-  };
-
-  async function fetchTransactions() {
+  const fetchTransactions = useCallback(async () => {
     setLoading(true);
 
     try {
       const { data } =
-        await api.get(
-          '/transactions/all'
-        );
+        await api.get('/transactions/all');
 
       setTransactions(
-        Array.isArray(data)
-          ? data
-          : Array.isArray(
-              data.transactions
-            )
-          ? data.transactions
-          : []
+        asArray(data, [
+          'transactions',
+          'data',
+        ])
       );
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
     fetchTransactions();
-  }, []);
+  }, [fetchTransactions]);
 
-  async function handleApprove(
-    id
-  ) {
+  const counts = {
+    pending: transactions.filter(
+      (t) => t.status === 'pending'
+    ).length,
+
+    completed: transactions.filter(
+      (t) =>
+        t.status === 'completed' ||
+        t.status === 'approved'
+    ).length,
+
+    rejected: transactions.filter(
+      (t) => t.status === 'rejected'
+    ).length,
+  };
+
+  async function handleApprove(id) {
+    if (!id) return;
+
+    setActionId(id);
+
     try {
       await api.post(
         `/transactions/${id}/approve`
@@ -1867,16 +1664,21 @@ function TransactionsTab() {
       console.error(err);
 
       alert(
-        err?.response?.data
-          ?.message ||
+        getApiError(
+          err,
           'Approval failed.'
+        )
       );
+    } finally {
+      setActionId(null);
     }
   }
 
-  async function handleReject(
-    id
-  ) {
+  async function handleReject(id) {
+    if (!id) return;
+
+    setActionId(id);
+
     try {
       await api.post(
         `/transactions/${id}/reject`
@@ -1887,58 +1689,83 @@ function TransactionsTab() {
       console.error(err);
 
       alert(
-        err?.response?.data
-          ?.message ||
+        getApiError(
+          err,
           'Reject failed.'
+        )
       );
+    } finally {
+      setActionId(null);
     }
   }
 
-  const filtered =
-    transactions.filter((t) => {
-      if (
-        subTab === 'pending'
-      ) {
-        return (
-          t.status === 'pending'
-        );
-      }
+  const filtered = transactions.filter((t) => {
+    if (subTab === 'pending') {
+      return t.status === 'pending';
+    }
 
+    if (subTab === 'completed') {
       return (
-        t.status ===
-          'completed' ||
+        t.status === 'completed' ||
         t.status === 'approved'
       );
-    });
+    }
+
+    return t.status === 'rejected';
+  });
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-2">
+
+      <div className="flex gap-2 flex-wrap">
         <button
-          onClick={() =>
-            setSubTab('pending')
-          }
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+          type="button"
+          onClick={() => setSubTab('pending')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium ${
             subTab === 'pending'
               ? 'bg-sky-50 text-sky-600 border border-sky-200'
-              : 'bg-gray-100 text-gray-400 hover:text-gray-600 border border-transparent'
+              : 'bg-gray-100 text-gray-400'
           }`}
         >
           Pending ({counts.pending})
         </button>
 
         <button
-          onClick={() =>
-            setSubTab('completed')
-          }
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-            subTab ===
-            'completed'
+          type="button"
+          onClick={() => setSubTab('completed')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium ${
+            subTab === 'completed'
               ? 'bg-sky-50 text-sky-600 border border-sky-200'
-              : 'bg-gray-100 text-gray-400 hover:text-gray-600 border border-transparent'
+              : 'bg-gray-100 text-gray-400'
           }`}
         >
           Completed ({counts.completed})
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setSubTab('rejected')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium ${
+            subTab === 'rejected'
+              ? 'bg-sky-50 text-sky-600 border border-sky-200'
+              : 'bg-gray-100 text-gray-400'
+          }`}
+        >
+          Rejected ({counts.rejected})
+        </button>
+
+        <button
+          type="button"
+          onClick={fetchTransactions}
+          disabled={loading}
+          className="ml-auto flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium bg-gray-100 text-gray-500 hover:bg-gray-200 disabled:opacity-50"
+        >
+          <RefreshCw
+            className={`w-3.5 h-3.5 ${
+              loading ? 'animate-spin' : ''
+            }`}
+          />
+          Refresh
         </button>
       </div>
 
@@ -1946,13 +1773,12 @@ function TransactionsTab() {
         <div className="flex justify-center py-12">
           <div className="w-8 h-8 border-4 border-sky-200 border-t-sky-500 rounded-full animate-spin" />
         </div>
-      ) : filtered.length ===
-        0 ? (
+      ) : filtered.length === 0 ? (
         <div className="text-center py-12">
           <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
 
           <p className="text-gray-400 text-sm">
-            No transactions
+            No {subTab} transactions
           </p>
         </div>
       ) : (
@@ -1961,49 +1787,42 @@ function TransactionsTab() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100">
-                  <th className="text-left p-3 text-gray-400 text-xs font-medium uppercase tracking-wider">
+                  <th className="text-left p-3 text-gray-400 text-xs uppercase">
                     User
                   </th>
-
-                  <th className="text-left p-3 text-gray-400 text-xs font-medium uppercase tracking-wider">
+                  <th className="text-left p-3 text-gray-400 text-xs uppercase">
                     Type
                   </th>
-
-                  <th className="text-left p-3 text-gray-400 text-xs font-medium uppercase tracking-wider">
+                  <th className="text-left p-3 text-gray-400 text-xs uppercase">
                     Amount
                   </th>
-
-                  <th className="text-left p-3 text-gray-400 text-xs font-medium uppercase tracking-wider">
+                  <th className="text-left p-3 text-gray-400 text-xs uppercase">
                     Method
                   </th>
-
-                  <th className="text-left p-3 text-gray-400 text-xs font-medium uppercase tracking-wider">
+                  <th className="text-left p-3 text-gray-400 text-xs uppercase">
                     Status
                   </th>
-
-                  <th className="text-left p-3 text-gray-400 text-xs font-medium uppercase tracking-wider">
+                  <th className="text-left p-3 text-gray-400 text-xs uppercase">
                     Date
                   </th>
-
-                  <th className="text-right p-3 text-gray-400 text-xs font-medium uppercase tracking-wider">
+                  <th className="text-right p-3 text-gray-400 text-xs uppercase">
                     Actions
                   </th>
                 </tr>
               </thead>
 
               <tbody className="divide-y divide-gray-50">
-                {filtered.map(
-                  (t) => (
+                {filtered.map((t) => {
+                  const id = getId(t);
+                  const busy = actionId === id;
+
+                  return (
                     <tr
-                      key={
-                        t._id ||
-                        t.id
-                      }
-                      className="hover:bg-gray-50 transition-colors"
+                      key={id}
+                      className="hover:bg-gray-50"
                     >
                       <td className="p-3 text-gray-800 text-xs">
-                        {t.user
-                          ?.full_name ||
+                        {t.user?.full_name ||
                           t.user_name ||
                           t.user_email ||
                           'Unknown'}
@@ -2012,82 +1831,52 @@ function TransactionsTab() {
                       <td className="p-3">
                         <span
                           className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                            t.type ===
-                            'deposit'
+                            t.type === 'deposit'
                               ? 'bg-emerald-50 text-emerald-600'
                               : 'bg-red-50 text-red-600'
                           }`}
                         >
-                          {t.type}
+                          {t.type || '-'}
                         </span>
                       </td>
 
                       <td className="p-3 text-gray-800 text-xs font-medium">
-                        {formatCurrency(
-                          t.amount
-                        )}
+                        {formatCurrency(num(t.amount))}
 
-                        {t.amount_inr >
-                          0 && (
+                        {num(t.amount_inr) > 0 && (
                           <span className="text-gray-400 font-normal">
                             {' '}
-                            · ₹
-                            {
-                              t.amount_inr
-                            }
+                            · ₹{num(t.amount_inr)}
                           </span>
                         )}
                       </td>
 
                       <td className="p-3">
                         <p className="text-gray-400 text-xs">
-                          {t.method ||
-                            '-'}
+                          {t.method || '-'}
                         </p>
 
                         {t.tx_hash && (
                           <p className="text-[10px] text-gray-300 font-mono mt-0.5">
-                            UTR:{' '}
-                            {
-                              t.tx_hash
-                            }
+                            UTR: {t.tx_hash}
                           </p>
                         )}
 
                         {t.bank_details && (
-                          <div className="text-[10px] text-gray-400 mt-0.5 leading-relaxed">
-                            <p className="text-gray-500">
-                              {
-                                t
-                                  .bank_details
-                                  .bank_name
-                              }
+                          <div className="text-[10px] text-gray-400 mt-0.5">
+                            <p>
+                              {t.bank_details.bank_name || '-'}
                             </p>
 
                             <p>
-                              {
-                                t
-                                  .bank_details
-                                  .account_holder
-                              }{' '}
+                              {t.bank_details.account_holder || ''}{' '}
                               ·{' '}
-                              {
-                                t
-                                  .bank_details
-                                  .account_number
-                              }
+                              {t.bank_details.account_number || ''}
                             </p>
 
-                            {t
-                              .bank_details
-                              .ifsc && (
+                            {t.bank_details.ifsc && (
                               <p>
-                                IFSC:{' '}
-                                {
-                                  t
-                                    .bank_details
-                                    .ifsc
-                                }
+                                IFSC: {t.bank_details.ifsc}
                               </p>
                             )}
                           </div>
@@ -2097,61 +1886,61 @@ function TransactionsTab() {
                       <td className="p-3">
                         <span
                           className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                            t.status ===
-                            'pending'
+                            t.status === 'pending'
                               ? 'bg-amber-50 text-amber-600'
+                              : t.status === 'rejected'
+                              ? 'bg-red-50 text-red-600'
                               : 'bg-emerald-50 text-emerald-600'
                           }`}
                         >
-                          {t.status}
+                          {t.status || '-'}
                         </span>
                       </td>
 
                       <td className="p-3 text-gray-400 text-xs">
                         {t.createdAt
-                          ? formatDate(
-                              t.createdAt
-                            )
+                          ? formatDate(t.createdAt)
                           : t.created_at
-                          ? formatDate(
-                              t.created_at
-                            )
+                          ? formatDate(t.created_at)
                           : '-'}
                       </td>
 
                       <td className="p-3 text-right">
-                        {t.status ===
-                          'pending' && (
+                        {t.status === 'pending' && (
                           <div className="flex gap-1.5 justify-end">
                             <button
+                              type="button"
+                              disabled={busy}
                               onClick={() =>
-                                handleApprove(
-                                  t._id ||
-                                    t.id
-                                )
+                                handleApprove(id)
                               }
-                              className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors"
+                              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium bg-emerald-50 text-emerald-600 hover:bg-emerald-100 disabled:opacity-50"
                             >
+                              {busy ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <Check className="w-3 h-3" />
+                              )}
                               Approve
                             </button>
 
                             <button
+                              type="button"
+                              disabled={busy}
                               onClick={() =>
-                                handleReject(
-                                  t._id ||
-                                    t.id
-                                )
+                                handleReject(id)
                               }
-                              className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+                              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium bg-red-50 text-red-600 hover:bg-red-100 disabled:opacity-50"
                             >
+                              <X className="w-3 h-3" />
                               Reject
                             </button>
                           </div>
                         )}
                       </td>
                     </tr>
-                  )
-                )}
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -2166,54 +1955,36 @@ function TransactionsTab() {
 ========================================================= */
 
 function TradeDataTab() {
-  const [trades, setTrades] =
-    useState([]);
+  const [trades, setTrades] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [savingId, setSavingId] = useState(null);
+  const [filter, setFilter] = useState('all');
+  const [query, setQuery] = useState('');
 
-  const [loading, setLoading] =
-    useState(true);
-
-  const [savingId, setSavingId] =
-    useState(null);
-
-  const [filter, setFilter] =
-    useState('all');
-
-  const [query, setQuery] =
-    useState('');
-
-  async function fetchTrades() {
+  const fetchTrades = useCallback(async () => {
     setLoading(true);
 
     try {
       const { data } =
-        await api.get(
-          '/admin/trades'
-        );
+        await api.get('/admin/trades');
 
       setTrades(
-        Array.isArray(data)
-          ? data
-          : Array.isArray(
-              data.trades
-            )
-          ? data.trades
-          : []
+        asArray(data, ['trades', 'data'])
       );
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
     fetchTrades();
-  }, []);
+  }, [fetchTrades]);
 
-  async function handleOutcome(
-    id,
-    outcome
-  ) {
+  async function handleOutcome(id, outcome) {
+    if (!id) return;
+
     setSavingId(id);
 
     try {
@@ -2227,9 +1998,10 @@ function TradeDataTab() {
       console.error(err);
 
       alert(
-        err?.response?.data
-          ?.message ||
+        getApiError(
+          err,
           'Trade update failed.'
+        )
       );
     } finally {
       setSavingId(null);
@@ -2238,86 +2010,70 @@ function TradeDataTab() {
 
   const counts = {
     all: trades.length,
-
     active: trades.filter(
-      (t) =>
-        t.status === 'active'
+      (t) => t.status === 'active'
     ).length,
-
     won: trades.filter(
-      (t) =>
-        t.status === 'won'
+      (t) => t.status === 'won'
     ).length,
-
     lost: trades.filter(
-      (t) =>
-        t.status === 'lost'
+      (t) => t.status === 'lost'
     ).length,
   };
 
-  const totalVolume =
-    trades.reduce(
-      (sum, t) =>
-        sum +
-        (t.amount || 0),
-      0
-    );
+  const totalVolume = trades.reduce(
+    (sum, t) =>
+      sum + num(t.amount),
+    0
+  );
 
-  const totalPL =
-    trades.reduce(
-      (sum, t) =>
-        sum +
-        (t.profit_loss || 0),
-      0
-    );
+  const totalPL = trades.reduce(
+    (sum, t) =>
+      sum + num(t.profit_loss),
+    0
+  );
 
-  const filtered =
-    trades.filter((t) => {
+  const filtered = trades.filter((t) => {
+    if (
+      filter !== 'all' &&
+      t.status !== filter
+    ) {
+      return false;
+    }
+
+    if (query.trim()) {
+      const q = query.toLowerCase();
+
+      const name =
+        t.user_id?.full_name ||
+        t.user?.full_name ||
+        '';
+
+      const email =
+        t.user_email ||
+        t.user?.email ||
+        '';
+
       if (
-        filter !== 'all' &&
-        t.status !== filter
+        !String(name)
+          .toLowerCase()
+          .includes(q) &&
+        !String(email)
+          .toLowerCase()
+          .includes(q)
       ) {
         return false;
       }
+    }
 
-      if (query) {
-        const q =
-          query.toLowerCase();
+    return true;
+  });
 
-        const name =
-          t.user_id
-            ?.full_name || '';
-
-        const email =
-          t.user_email || '';
-
-        if (
-          !name
-            .toLowerCase()
-            .includes(q) &&
-          !email
-            .toLowerCase()
-            .includes(q)
-        ) {
-          return false;
-        }
-      }
-
-      return true;
-    });
-
-  const statusBadge = (
-    status
-  ) => {
+  function statusBadge(status) {
     const map = {
-      active:
-        'bg-blue-50 text-blue-600',
-
-      won:
-        'bg-emerald-50 text-emerald-600',
-
-      lost:
-        'bg-red-50 text-red-600',
+      active: 'bg-blue-50 text-blue-600',
+      won: 'bg-emerald-50 text-emerald-600',
+      lost: 'bg-red-50 text-red-600',
     };
 
     return (
@@ -2327,38 +2083,35 @@ function TradeDataTab() {
           'bg-gray-50 text-gray-500'
         }`}
       >
-        {status}
+        {status || 'unknown'}
       </span>
     );
-  };
+  }
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-3 gap-3">
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="bg-white rounded-xl shadow-sm border border-sky-100 p-3">
-          <p className="text-gray-400 text-[10px] font-medium uppercase tracking-wider">
+          <p className="text-gray-400 text-[10px] uppercase">
             Total Trades
           </p>
-
           <p className="text-gray-900 font-semibold text-xl">
             {trades.length}
           </p>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-sky-100 p-3">
-          <p className="text-gray-400 text-[10px] font-medium uppercase tracking-wider">
+          <p className="text-gray-400 text-[10px] uppercase">
             Total Volume
           </p>
-
           <p className="text-gray-900 font-semibold text-xl">
-            {formatCurrency(
-              totalVolume
-            )}
+            {formatCurrency(totalVolume)}
           </p>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-sky-100 p-3">
-          <p className="text-gray-400 text-[10px] font-medium uppercase tracking-wider">
+          <p className="text-gray-400 text-[10px] uppercase">
             Total P/L
           </p>
 
@@ -2369,13 +2122,8 @@ function TradeDataTab() {
                 : 'text-red-600'
             }`}
           >
-            {totalPL >= 0
-              ? '+'
-              : '-'}
-
-            {formatCurrency(
-              Math.abs(totalPL)
-            )}
+            {totalPL >= 0 ? '+' : '-'}
+            {formatCurrency(Math.abs(totalPL))}
           </p>
         </div>
       </div>
@@ -2388,19 +2136,32 @@ function TradeDataTab() {
           'lost',
         ].map((f) => (
           <button
+            type="button"
             key={f}
-            onClick={() =>
-              setFilter(f)
-            }
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors capitalize ${
+            onClick={() => setFilter(f)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium capitalize ${
               filter === f
                 ? 'bg-sky-50 text-sky-600 border border-sky-200'
-                : 'bg-gray-100 text-gray-400 hover:text-gray-600 border border-transparent'
+                : 'bg-gray-100 text-gray-400'
             }`}
           >
             {f} ({counts[f]})
           </button>
         ))}
+
+        <button
+          type="button"
+          onClick={fetchTrades}
+          disabled={loading}
+          className="ml-auto flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs bg-gray-100 text-gray-500 hover:bg-gray-200 disabled:opacity-50"
+        >
+          <RefreshCw
+            className={`w-3.5 h-3.5 ${
+              loading ? 'animate-spin' : ''
+            }`}
+          />
+          Refresh
+        </button>
       </div>
 
       <div className="relative max-w-md">
@@ -2410,12 +2171,10 @@ function TradeDataTab() {
           type="text"
           value={query}
           onChange={(e) =>
-            setQuery(
-              e.target.value
-            )
+            setQuery(e.target.value)
           }
           placeholder="Search by user email or name..."
-          className="w-full bg-white border border-sky-100 rounded-lg pl-10 pr-4 py-2.5 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 placeholder:text-gray-400 shadow-sm"
+          className="w-full bg-white border border-sky-100 rounded-lg pl-10 pr-4 py-2.5 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 shadow-sm"
         />
       </div>
 
@@ -2423,11 +2182,9 @@ function TradeDataTab() {
         <div className="flex justify-center py-12">
           <div className="w-8 h-8 border-4 border-sky-200 border-t-sky-500 rounded-full animate-spin" />
         </div>
-      ) : filtered.length ===
-        0 ? (
+      ) : filtered.length === 0 ? (
         <div className="text-center py-12">
           <Database className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-
           <p className="text-gray-400 text-sm">
             No trades found
           </p>
@@ -2438,236 +2195,187 @@ function TradeDataTab() {
             <table className="w-full text-sm whitespace-nowrap">
               <thead>
                 <tr className="border-b border-gray-100">
-                  <th className="text-left p-3 text-gray-400 text-xs font-medium uppercase tracking-wider">
-                    Date
-                  </th>
-
-                  <th className="text-left p-3 text-gray-400 text-xs font-medium uppercase tracking-wider">
-                    User
-                  </th>
-
-                  <th className="text-left p-3 text-gray-400 text-xs font-medium uppercase tracking-wider">
-                    Crypto
-                  </th>
-
-                  <th className="text-left p-3 text-gray-400 text-xs font-medium uppercase tracking-wider">
-                    Direction
-                  </th>
-
-                  <th className="text-left p-3 text-gray-400 text-xs font-medium uppercase tracking-wider">
-                    Amount
-                  </th>
-
-                  <th className="text-left p-3 text-gray-400 text-xs font-medium uppercase tracking-wider">
-                    Entry
-                  </th>
-
-                  <th className="text-left p-3 text-gray-400 text-xs font-medium uppercase tracking-wider">
-                    Exit
-                  </th>
-
-                  <th className="text-left p-3 text-gray-400 text-xs font-medium uppercase tracking-wider">
-                    Duration
-                  </th>
-
-                  <th className="text-left p-3 text-gray-400 text-xs font-medium uppercase tracking-wider">
-                    Profit %
-                  </th>
-
-                  <th className="text-left p-3 text-gray-400 text-xs font-medium uppercase tracking-wider">
-                    P/L
-                  </th>
-
-                  <th className="text-left p-3 text-gray-400 text-xs font-medium uppercase tracking-wider">
-                    Status
-                  </th>
-
-                  <th className="text-right p-3 text-gray-400 text-xs font-medium uppercase tracking-wider">
-                    Control
-                  </th>
+                  {[
+                    'Date',
+                    'User',
+                    'Crypto',
+                    'Direction',
+                    'Amount',
+                    'Entry',
+                    'Exit',
+                    'Duration',
+                    'Profit %',
+                    'P/L',
+                    'Status',
+                    'Control',
+                  ].map((heading) => (
+                    <th
+                      key={heading}
+                      className="text-left p-3 text-gray-400 text-xs uppercase tracking-wider"
+                    >
+                      {heading}
+                    </th>
+                  ))}
                 </tr>
               </thead>
 
               <tbody className="divide-y divide-gray-50">
-                {filtered.map(
-                  (t) => {
-                    const isWon =
-                      t.status ===
-                      'won';
+                {filtered.map((t) => {
+                  const id = getId(t);
+                  const isWon =
+                    t.status === 'won';
+                  const isLost =
+                    t.status === 'lost';
+                  const busy =
+                    savingId === id;
 
-                    const isLost =
-                      t.status ===
-                      'lost';
+                  return (
+                    <tr
+                      key={id}
+                      className="hover:bg-gray-50"
+                    >
+                      <td className="p-3 text-gray-400 text-xs">
+                        {t.createdAt
+                          ? formatDate(t.createdAt)
+                          : '-'}
+                      </td>
 
-                    const id =
-                      t._id ||
-                      t.id;
+                      <td className="p-3">
+                        <p className="text-gray-800 text-xs font-medium">
+                          {t.user_id?.full_name ||
+                            t.user?.full_name ||
+                            'Unknown'}
+                        </p>
 
-                    return (
-                      <tr
-                        key={id}
-                        className="hover:bg-gray-50 transition-colors"
-                      >
-                        <td className="p-3 text-gray-400 text-xs">
-                          {t.createdAt
-                            ? formatDate(
-                                t.createdAt
-                              )
-                            : '-'}
-                        </td>
+                        <p className="text-gray-400 text-[11px]">
+                          {t.user_email ||
+                            t.user?.email ||
+                            '-'}
+                        </p>
+                      </td>
 
-                        <td className="p-3">
-                          <p className="text-gray-800 text-xs font-medium">
-                            {t.user_id
-                              ?.full_name ||
-                              'Unknown'}
-                          </p>
+                      <td className="p-3 text-gray-800 text-xs font-semibold">
+                        {t.crypto || '-'}
+                      </td>
 
-                          <p className="text-gray-400 text-[11px]">
-                            {t.user_email ||
-                              '-'}
-                          </p>
-                        </td>
+                      <td className="p-3">
+                        <span
+                          className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                            t.direction === 'buy'
+                              ? 'bg-emerald-50 text-emerald-600'
+                              : 'bg-red-50 text-red-600'
+                          }`}
+                        >
+                          {String(
+                            t.direction || 'buy'
+                          ).toUpperCase()}
+                        </span>
+                      </td>
 
-                        <td className="p-3 text-gray-800 text-xs font-semibold">
-                          {t.crypto}
-                        </td>
+                      <td className="p-3 text-gray-800 text-xs font-medium">
+                        {formatCurrency(num(t.amount))}
+                      </td>
 
-                        <td className="p-3">
-                          <span
-                            className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                              t.direction ===
-                              'buy'
-                                ? 'bg-emerald-50 text-emerald-600'
-                                : 'bg-red-50 text-red-600'
-                            }`}
-                          >
-                            {(
-                              t.direction ||
-                              'buy'
-                            ).toUpperCase()}
-                          </span>
-                        </td>
+                      <td className="p-3 text-gray-800 text-xs">
+                        {num(t.entry_price) > 0
+                          ? formatCurrency(
+                              num(t.entry_price)
+                            )
+                          : '-'}
+                      </td>
 
-                        <td className="p-3 text-gray-800 text-xs font-medium">
+                      <td className="p-3 text-gray-800 text-xs">
+                        {num(t.exit_price) > 0
+                          ? formatCurrency(
+                              num(t.exit_price)
+                            )
+                          : '-'}
+                      </td>
+
+                      <td className="p-3 text-gray-800 text-xs">
+                        {num(t.duration) > 0
+                          ? `${num(t.duration)}s`
+                          : '-'}
+                      </td>
+
+                      <td className="p-3 text-gray-800 text-xs">
+                        {t.profit_percent !==
+                          undefined &&
+                        t.profit_percent !==
+                          null
+                          ? `${t.profit_percent}%`
+                          : '-'}
+                      </td>
+
+                      <td className="p-3">
+                        <p
+                          className={`text-xs font-semibold ${
+                            num(t.profit_loss) >= 0
+                              ? 'text-emerald-600'
+                              : 'text-red-600'
+                          }`}
+                        >
+                          {num(t.profit_loss) >= 0
+                            ? '+'
+                            : ''}
                           {formatCurrency(
-                            t.amount
+                            num(t.profit_loss)
                           )}
-                        </td>
+                        </p>
+                      </td>
 
-                        <td className="p-3 text-gray-800 text-xs">
-                          {t.entry_price
-                            ? formatCurrency(
-                                t.entry_price
+                      <td className="p-3">
+                        {statusBadge(t.status)}
+                      </td>
+
+                      <td className="p-3 text-right">
+                        <div className="flex gap-1.5 justify-end">
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() =>
+                              handleOutcome(
+                                id,
+                                'won'
                               )
-                            : '-'}
-                        </td>
-
-                        <td className="p-3 text-gray-800 text-xs">
-                          {t.exit_price
-                            ? formatCurrency(
-                                t.exit_price
-                              )
-                            : '-'}
-                        </td>
-
-                        <td className="p-3 text-gray-800 text-xs">
-                          {t.duration
-                            ? `${t.duration}s`
-                            : '-'}
-                        </td>
-
-                        <td className="p-3 text-gray-800 text-xs">
-                          {t.profit_percent
-                            ? `${t.profit_percent}%`
-                            : '-'}
-                        </td>
-
-                        <td className="p-3">
-                          <p
-                            className={`text-xs font-semibold ${
-                              (t.profit_loss ||
-                                0) >=
-                              0
-                                ? 'text-emerald-600'
-                                : 'text-red-600'
+                            }
+                            className={`px-2.5 py-1 rounded-lg text-[11px] font-medium disabled:opacity-50 ${
+                              isWon
+                                ? 'bg-emerald-600 text-white'
+                                : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
                             }`}
                           >
-                            {(t.profit_loss ||
-                              0) >=
-                            0
-                              ? '+'
-                              : ''}
+                            Won
+                          </button>
 
-                            {formatCurrency(
-                              t.profit_loss ||
-                                0
-                            )}
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() =>
+                              handleOutcome(
+                                id,
+                                'lost'
+                              )
+                            }
+                            className={`px-2.5 py-1 rounded-lg text-[11px] font-medium disabled:opacity-50 ${
+                              isLost
+                                ? 'bg-red-600 text-white'
+                                : 'bg-red-50 text-red-600 hover:bg-red-100'
+                            }`}
+                          >
+                            Lost
+                          </button>
+                        </div>
+
+                        {t.admin_outcome && (
+                          <p className="text-[10px] text-gray-400 mt-1">
+                            Admin: {t.admin_outcome}
                           </p>
-                        </td>
-
-                        <td className="p-3">
-                          {statusBadge(
-                            t.status
-                          )}
-                        </td>
-
-                        <td className="p-3 text-right">
-                          <div className="flex gap-1.5 justify-end">
-                            <button
-                              onClick={() =>
-                                handleOutcome(
-                                  id,
-                                  'won'
-                                )
-                              }
-                              disabled={
-                                savingId ===
-                                id
-                              }
-                              className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors disabled:opacity-50 ${
-                                isWon
-                                  ? 'bg-emerald-600 text-white'
-                                  : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
-                              }`}
-                            >
-                              Won
-                            </button>
-
-                            <button
-                              onClick={() =>
-                                handleOutcome(
-                                  id,
-                                  'lost'
-                                )
-                              }
-                              disabled={
-                                savingId ===
-                                id
-                              }
-                              className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors disabled:opacity-50 ${
-                                isLost
-                                  ? 'bg-red-600 text-white'
-                                  : 'bg-red-50 text-red-600 hover:bg-red-100'
-                              }`}
-                            >
-                              Lost
-                            </button>
-                          </div>
-
-                          {t.admin_outcome && (
-                            <p className="text-[10px] text-gray-400 mt-1">
-                              Admin:{' '}
-                              {
-                                t.admin_outcome
-                              }
-                            </p>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  }
-                )}
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -2684,6 +2392,10 @@ function TradeDataTab() {
 function NotificationsTab({
   users = [],
 }) {
+  const safeUsers = Array.isArray(users)
+    ? users
+    : [];
+
   const [recipient, setRecipient] =
     useState('all');
 
@@ -2712,21 +2424,20 @@ function NotificationsTab({
     useState('');
 
   const filteredUsers =
-    users.filter((u) => {
-      if (!searchUser.trim())
-        return true;
+    safeUsers.filter((u) => {
+      if (!searchUser.trim()) return true;
 
-      const q =
-        searchUser.toLowerCase();
+      const q = searchUser.toLowerCase();
 
       return (
-        u.full_name
-          ?.toLowerCase()
+        String(u.full_name || '')
+          .toLowerCase()
           .includes(q) ||
-        u.email
-          ?.toLowerCase()
+        String(u.email || '')
+          .toLowerCase()
           .includes(q) ||
-        u.mobile?.includes(q)
+        String(u.mobile || '')
+          .includes(q)
       );
     });
 
@@ -2777,16 +2488,12 @@ function NotificationsTab({
     setError('');
 
     if (!title.trim()) {
-      setError(
-        'Please enter notification title.'
-      );
+      setError('Please enter notification title.');
       return;
     }
 
     if (!message.trim()) {
-      setError(
-        'Please enter notification message.'
-      );
+      setError('Please enter notification message.');
       return;
     }
 
@@ -2794,9 +2501,7 @@ function NotificationsTab({
       recipient === 'user' &&
       !selectedUser
     ) {
-      setError(
-        'Please select a user.'
-      );
+      setError('Please select a user.');
       return;
     }
 
@@ -2807,15 +2512,11 @@ function NotificationsTab({
         title: title.trim(),
         message: message.trim(),
         type,
-        recipient_type:
-          recipient,
+        recipient_type: recipient,
       };
 
-      if (
-        recipient === 'user'
-      ) {
-        payload.user_id =
-          selectedUser;
+      if (recipient === 'user') {
+        payload.user_id = selectedUser;
       }
 
       const response =
@@ -2833,9 +2534,7 @@ function NotificationsTab({
       setMsg(
         sentCount !== null
           ? `Notification sent successfully to ${sentCount} user${
-              sentCount === 1
-                ? ''
-                : 's'
+              sentCount === 1 ? '' : 's'
             }.`
           : recipient === 'all'
           ? 'Notification sent successfully to all users.'
@@ -2847,11 +2546,10 @@ function NotificationsTab({
       console.error(err);
 
       setError(
-        err?.response?.data
-          ?.message ||
-          err?.response?.data
-            ?.error ||
-          'Failed to send notification. Please check the server.'
+        getApiError(
+          err,
+          'Failed to send notification.'
+        )
       );
     } finally {
       setSending(false);
@@ -2859,19 +2557,18 @@ function NotificationsTab({
   }
 
   const selectedUserData =
-    users.find(
+    safeUsers.find(
       (u) =>
-        String(
-          u._id || u.id
-        ) ===
+        String(getId(u)) ===
         String(selectedUser)
     );
 
   return (
     <div className="space-y-4">
+
       <div className="bg-white rounded-xl shadow-sm border border-sky-100 p-5">
         <div className="flex items-start gap-3">
-          <div className="w-11 h-11 rounded-xl bg-sky-50 flex items-center justify-center flex-shrink-0">
+          <div className="w-11 h-11 rounded-xl bg-sky-50 flex items-center justify-center">
             <Bell className="w-5 h-5 text-sky-500" />
           </div>
 
@@ -2881,9 +2578,7 @@ function NotificationsTab({
             </h3>
 
             <p className="text-gray-400 text-xs mt-1">
-              Send an in-app notification
-              to one user or all registered
-              users.
+              Send an in-app notification to one user or all registered users.
             </p>
           </div>
         </div>
@@ -2891,7 +2586,7 @@ function NotificationsTab({
 
       {msg && (
         <div className="flex items-start gap-3 bg-emerald-50 border border-emerald-200 rounded-xl p-4">
-          <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+          <CheckCircle className="w-5 h-5 text-emerald-600" />
 
           <div className="flex-1">
             <p className="text-emerald-700 text-sm font-semibold">
@@ -2904,10 +2599,9 @@ function NotificationsTab({
           </div>
 
           <button
-            onClick={() =>
-              setMsg('')
-            }
-            className="text-emerald-500 hover:text-emerald-700"
+            type="button"
+            onClick={() => setMsg('')}
+            className="text-emerald-500"
           >
             <X className="w-4 h-4" />
           </button>
@@ -2916,7 +2610,7 @@ function NotificationsTab({
 
       {error && (
         <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl p-4">
-          <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0" />
+          <AlertTriangle className="w-5 h-5 text-red-600" />
 
           <div className="flex-1">
             <p className="text-red-700 text-sm font-semibold">
@@ -2929,10 +2623,9 @@ function NotificationsTab({
           </div>
 
           <button
-            onClick={() =>
-              setError('')
-            }
-            className="text-red-500 hover:text-red-700"
+            type="button"
+            onClick={() => setError('')}
+            className="text-red-500"
           >
             <X className="w-4 h-4" />
           </button>
@@ -2940,12 +2633,13 @@ function NotificationsTab({
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
         {/* FORM */}
         <div className="bg-white rounded-xl shadow-sm border border-sky-100 p-5">
           <div className="space-y-5">
-            {/* RECIPIENT */}
+
             <div>
-              <label className="text-gray-400 text-[10px] font-medium uppercase tracking-wider mb-2 block">
+              <label className="text-gray-400 text-[10px] uppercase mb-2 block">
                 Send To
               </label>
 
@@ -2953,18 +2647,13 @@ function NotificationsTab({
                 <button
                   type="button"
                   onClick={() => {
-                    setRecipient(
-                      'all'
-                    );
-                    setSelectedUser(
-                      ''
-                    );
+                    setRecipient('all');
+                    setSelectedUser('');
                   }}
-                  className={`flex items-center justify-center gap-2 px-3 py-3 rounded-xl border text-sm font-medium transition-colors ${
-                    recipient ===
-                    'all'
+                  className={`flex items-center justify-center gap-2 px-3 py-3 rounded-xl border text-sm font-medium ${
+                    recipient === 'all'
                       ? 'bg-sky-50 border-sky-200 text-sky-600'
-                      : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'
+                      : 'bg-gray-50 border-gray-200 text-gray-500'
                   }`}
                 >
                   <Users className="w-4 h-4" />
@@ -2974,15 +2663,12 @@ function NotificationsTab({
                 <button
                   type="button"
                   onClick={() =>
-                    setRecipient(
-                      'user'
-                    )
+                    setRecipient('user')
                   }
-                  className={`flex items-center justify-center gap-2 px-3 py-3 rounded-xl border text-sm font-medium transition-colors ${
-                    recipient ===
-                    'user'
+                  className={`flex items-center justify-center gap-2 px-3 py-3 rounded-xl border text-sm font-medium ${
+                    recipient === 'user'
                       ? 'bg-sky-50 border-sky-200 text-sky-600'
-                      : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'
+                      : 'bg-gray-50 border-gray-200 text-gray-500'
                   }`}
                 >
                   <User className="w-4 h-4" />
@@ -2991,11 +2677,9 @@ function NotificationsTab({
               </div>
             </div>
 
-            {/* USER SELECTOR */}
-            {recipient ===
-              'user' && (
+            {recipient === 'user' && (
               <div>
-                <label className="text-gray-400 text-[10px] font-medium uppercase tracking-wider mb-2 block">
+                <label className="text-gray-400 text-[10px] uppercase mb-2 block">
                   Select User
                 </label>
 
@@ -3004,62 +2688,40 @@ function NotificationsTab({
 
                   <input
                     type="text"
-                    value={
-                      searchUser
-                    }
-                    onChange={(
-                      e
-                    ) =>
+                    value={searchUser}
+                    onChange={(e) =>
                       setSearchUser(
-                        e.target
-                          .value
+                        e.target.value
                       )
                     }
                     placeholder="Search name, email or mobile..."
-                    className="w-full bg-gray-50 border border-gray-200 rounded-lg pl-10 pr-3 py-2.5 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                    className="w-full bg-gray-50 border border-gray-200 rounded-lg pl-10 pr-3 py-2.5 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
                   />
                 </div>
 
                 <div className="relative">
                   <select
-                    value={
-                      selectedUser
-                    }
-                    onChange={(
-                      e
-                    ) =>
+                    value={selectedUser}
+                    onChange={(e) =>
                       setSelectedUser(
-                        e.target
-                          .value
+                        e.target.value
                       )
                     }
-                    className="w-full appearance-none bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 pr-9 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                    className="w-full appearance-none bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 pr-9 text-gray-800 text-sm"
                   >
                     <option value="">
                       Select user...
                     </option>
 
-                    {filteredUsers.map(
-                      (u) => (
-                        <option
-                          key={
-                            u._id ||
-                            u.id
-                          }
-                          value={
-                            u._id ||
-                            u.id
-                          }
-                        >
-                          {u.full_name ||
-                            'User'}{' '}
-                          —{' '}
-                          {
-                            u.email
-                          }
-                        </option>
-                      )
-                    )}
+                    {filteredUsers.map((u) => (
+                      <option
+                        key={getId(u)}
+                        value={getId(u)}
+                      >
+                        {u.full_name || 'User'} —{' '}
+                        {u.email || ''}
+                      </option>
+                    ))}
                   </select>
 
                   <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -3069,23 +2731,16 @@ function NotificationsTab({
                   <div className="mt-2 bg-sky-50 border border-sky-100 rounded-lg p-3">
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 rounded-lg bg-sky-500 flex items-center justify-center text-white text-xs font-bold">
-                        {selectedUserData
-                          .full_name?.[0]
-                          ?.toUpperCase() ||
-                          'U'}
+                        {selectedUserData.full_name?.[0]?.toUpperCase() || 'U'}
                       </div>
 
                       <div className="min-w-0">
                         <p className="text-gray-800 text-xs font-semibold truncate">
-                          {
-                            selectedUserData.full_name
-                          }
+                          {selectedUserData.full_name || 'User'}
                         </p>
 
                         <p className="text-gray-400 text-[11px] truncate">
-                          {
-                            selectedUserData.email
-                          }
+                          {selectedUserData.email || '-'}
                         </p>
                       </div>
 
@@ -3096,55 +2751,44 @@ function NotificationsTab({
               </div>
             )}
 
-            {/* TYPE */}
             <div>
-              <label className="text-gray-400 text-[10px] font-medium uppercase tracking-wider mb-2 block">
+              <label className="text-gray-400 text-[10px] uppercase mb-2 block">
                 Notification Type
               </label>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {typeOptions.map(
-                  (item) => {
-                    const TypeIcon =
-                      item.icon;
+                {typeOptions.map((item) => {
+                  const TypeIcon = item.icon;
 
-                    return (
-                      <button
-                        type="button"
-                        key={
-                          item.value
-                        }
-                        onClick={() =>
-                          setType(
-                            item.value
-                          )
-                        }
-                        className={`flex items-center justify-center gap-1.5 px-2 py-2.5 rounded-lg border text-xs font-medium transition-colors ${
-                          type ===
-                          item.value
-                            ? 'bg-sky-50 border-sky-200 text-sky-600'
-                            : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'
-                        }`}
-                      >
-                        <TypeIcon className="w-3.5 h-3.5" />
-                        {item.label}
-                      </button>
-                    );
-                  }
-                )}
+                  return (
+                    <button
+                      type="button"
+                      key={item.value}
+                      onClick={() =>
+                        setType(item.value)
+                      }
+                      className={`flex items-center justify-center gap-1.5 px-2 py-2.5 rounded-lg border text-xs font-medium ${
+                        type === item.value
+                          ? 'bg-sky-50 border-sky-200 text-sky-600'
+                          : 'bg-gray-50 border-gray-200 text-gray-500'
+                      }`}
+                    >
+                      <TypeIcon className="w-3.5 h-3.5" />
+                      {item.label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
-            {/* TITLE */}
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-gray-400 text-[10px] font-medium uppercase tracking-wider">
+              <div className="flex justify-between mb-2">
+                <label className="text-gray-400 text-[10px] uppercase">
                   Title
                 </label>
 
                 <span className="text-[10px] text-gray-400">
-                  {title.length}
-                  /100
+                  {title.length}/100
                 </span>
               </div>
 
@@ -3153,25 +2797,21 @@ function NotificationsTab({
                 maxLength={100}
                 value={title}
                 onChange={(e) =>
-                  setTitle(
-                    e.target.value
-                  )
+                  setTitle(e.target.value)
                 }
                 placeholder="Notification title"
-                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-gray-800 text-sm"
               />
             </div>
 
-            {/* MESSAGE */}
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-gray-400 text-[10px] font-medium uppercase tracking-wider">
+              <div className="flex justify-between mb-2">
+                <label className="text-gray-400 text-[10px] uppercase">
                   Message
                 </label>
 
                 <span className="text-[10px] text-gray-400">
-                  {message.length}
-                  /1000
+                  {message.length}/1000
                 </span>
               </div>
 
@@ -3180,30 +2820,24 @@ function NotificationsTab({
                 rows={6}
                 value={message}
                 onChange={(e) =>
-                  setMessage(
-                    e.target.value
-                  )
+                  setMessage(e.target.value)
                 }
                 placeholder="Write your notification message..."
-                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-gray-800 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-gray-800 text-sm resize-none"
               />
             </div>
 
-            {/* SEND */}
             <button
               type="button"
-              onClick={
-                handleSend
-              }
+              onClick={handleSend}
               disabled={
                 sending ||
                 !title.trim() ||
                 !message.trim() ||
-                (recipient ===
-                  'user' &&
+                (recipient === 'user' &&
                   !selectedUser)
               }
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold bg-sky-500 hover:bg-sky-600 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold bg-sky-500 hover:bg-sky-600 text-white disabled:opacity-50"
             >
               {sending ? (
                 <>
@@ -3224,7 +2858,6 @@ function NotificationsTab({
         <div className="bg-white rounded-xl shadow-sm border border-sky-100 p-5">
           <div className="flex items-center gap-2 mb-4">
             <Eye className="w-4 h-4 text-sky-500" />
-
             <h4 className="text-gray-900 text-sm font-semibold">
               Notification Preview
             </h4>
@@ -3233,27 +2866,23 @@ function NotificationsTab({
           <div className="bg-gray-50 rounded-2xl p-4 min-h-[280px]">
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
               <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-xl bg-sky-50 flex items-center justify-center flex-shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-sky-50 flex items-center justify-center">
                   <Bell className="w-5 h-5 text-sky-500" />
                 </div>
 
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-gray-900 text-sm font-semibold truncate">
-                      {title ||
-                        'Notification Title'}
+                      {title || 'Notification Title'}
                     </p>
 
-                    <span className="text-[10px] text-gray-400 flex-shrink-0">
+                    <span className="text-[10px] text-gray-400">
                       Now
                     </span>
                   </div>
 
-                  <p className="text-gray-400 text-xs mt-1">
-                    {type
-                      .charAt(0)
-                      .toUpperCase() +
-                      type.slice(1)}
+                  <p className="text-gray-400 text-xs mt-1 capitalize">
+                    {type}
                   </p>
 
                   <p className="text-gray-600 text-sm mt-3 whitespace-pre-wrap break-words">
@@ -3265,24 +2894,17 @@ function NotificationsTab({
             </div>
 
             <div className="mt-4 flex items-center gap-2 text-[11px] text-gray-400">
-              {recipient ===
-              'all' ? (
+              {recipient === 'all' ? (
                 <>
                   <Users className="w-3.5 h-3.5" />
-
-                  This notification will
-                  be sent to all users.
+                  This notification will be sent to all users.
                 </>
               ) : (
                 <>
                   <User className="w-3.5 h-3.5" />
-
-                  This notification will
-                  be sent to{' '}
-                  {selectedUserData
-                    ?.full_name ||
-                    'selected user'}
-                  .
+                  This notification will be sent to{' '}
+                  {selectedUserData?.full_name ||
+                    'selected user'}.
                 </>
               )}
             </div>
@@ -3290,22 +2912,20 @@ function NotificationsTab({
 
           <div className="mt-4 grid grid-cols-2 gap-2">
             <div className="bg-sky-50 rounded-lg p-3">
-              <p className="text-sky-600 text-[10px] uppercase font-medium">
+              <p className="text-sky-600 text-[10px] uppercase">
                 Recipient
               </p>
 
               <p className="text-gray-800 text-xs font-semibold mt-1">
-                {recipient ===
-                'all'
-                  ? `All Users (${users.length})`
-                  : selectedUserData
-                      ?.full_name ||
+                {recipient === 'all'
+                  ? `All Users (${safeUsers.length})`
+                  : selectedUserData?.full_name ||
                     'Not selected'}
               </p>
             </div>
 
             <div className="bg-gray-50 rounded-lg p-3">
-              <p className="text-gray-400 text-[10px] uppercase font-medium">
+              <p className="text-gray-400 text-[10px] uppercase">
                 Type
               </p>
 
@@ -3313,26 +2933,6 @@ function NotificationsTab({
                 {type}
               </p>
             </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-amber-50 border border-amber-100 rounded-xl p-4">
-        <div className="flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0" />
-
-          <div>
-            <p className="text-amber-700 text-xs font-semibold">
-              Notification system
-            </p>
-
-            <p className="text-amber-600 text-[11px] mt-1 leading-relaxed">
-              Notifications are stored for
-              the selected user(s) and should
-              appear in the user's notification
-              area after the backend notification
-              endpoint is connected.
-            </p>
           </div>
         </div>
       </div>
@@ -3347,6 +2947,10 @@ function NotificationsTab({
 function WalletsTab({
   users = [],
 }) {
+  const safeUsers = Array.isArray(users)
+    ? users
+    : [];
+
   const [wallets, setWallets] =
     useState([]);
 
@@ -3355,8 +2959,7 @@ function WalletsTab({
 
   const [form, setForm] =
     useState({
-      currency:
-        'USDT_TRC20',
+      currency: 'USDT_TRC20',
       address: '',
       label: '',
       network: 'TRC20',
@@ -3409,67 +3012,101 @@ function WalletsTab({
   const [tgMsg, setTgMsg] =
     useState('');
 
-  async function fetchWallets() {
-    const { data } =
-      await api.get(
-        '/wallets/all'
+  const [walletActionId, setWalletActionId] =
+    useState(null);
+
+  const [bankActionId, setBankActionId] =
+    useState(null);
+
+  const fetchWallets = useCallback(async () => {
+    try {
+      const { data } =
+        await api.get('/wallets/all');
+
+      setWallets(
+        asArray(data, [
+          'wallets',
+          'data',
+        ])
       );
-
-    setWallets(
-      Array.isArray(data)
-        ? data
-        : Array.isArray(
-            data.wallets
-          )
-        ? data.wallets
-        : []
-    );
-  }
-
-  async function fetchBanks() {
-    const { data } =
-      await api.get(
-        '/banks/all'
-      );
-
-    setBanks(
-      Array.isArray(data)
-        ? data
-        : Array.isArray(
-            data.banks
-          )
-        ? data.banks
-        : []
-    );
-  }
-
-  async function fetchSettings() {
-    const { data } =
-      await api.get(
-        '/settings'
-      );
-
-    if (data?.inr_rate) {
-      setInrRate(
-        Number(data.inr_rate)
-      );
+    } catch (err) {
+      console.error(err);
+      setWallets([]);
     }
+  }, []);
 
-    if (
-      data?.support_telegram
-    ) {
-      setTgUsername(
-        String(
-          data.support_telegram
-        ).replace(
-          /^@/,
-          ''
-        )
+  const fetchBanks = useCallback(async () => {
+    try {
+      const { data } =
+        await api.get('/banks/all');
+
+      setBanks(
+        asArray(data, [
+          'banks',
+          'data',
+        ])
       );
+    } catch (err) {
+      console.error(err);
+      setBanks([]);
     }
-  }
+  }, []);
 
-  async function fetchReferral() {
+  const fetchSettings = useCallback(async () => {
+    try {
+      const { data } =
+        await api.get('/settings');
+
+      let settings = data;
+
+      if (Array.isArray(data)) {
+        settings = {};
+
+        data.forEach((item) => {
+          if (
+            item?.key
+          ) {
+            settings[item.key] =
+              item.value;
+          }
+        });
+      }
+
+      if (
+        settings &&
+        typeof settings === 'object'
+      ) {
+        if (
+          settings.inr_rate !==
+          undefined
+        ) {
+          setInrRate(
+            num(
+              settings.inr_rate,
+              85
+            )
+          );
+        }
+
+        if (
+          settings.support_telegram
+        ) {
+          setTgUsername(
+            String(
+              settings.support_telegram
+            ).replace(
+              /^@/,
+              ''
+            )
+          );
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }, []);
+
+  const fetchReferral = useCallback(async () => {
     try {
       const { data } =
         await api.get(
@@ -3478,82 +3115,101 @@ function WalletsTab({
 
       if (data?.code) {
         setRefCode(
-          data.code
+          String(data.code)
         );
       }
 
-      if (
-        data?.owner?._id
-      ) {
+      const ownerId =
+        data?.owner?._id ||
+        data?.owner?.id ||
+        data?.owner_id;
+
+      if (ownerId) {
         setRefOwner(
-          data.owner._id
+          String(ownerId)
         );
       }
     } catch (err) {
       console.error(err);
     }
-  }
+  }, []);
 
-  async function fetchAll() {
+  const fetchAll = useCallback(async () => {
     setLoading(true);
 
-    try {
-      await Promise.all([
-        fetchWallets(),
-        fetchBanks(),
-        fetchSettings(),
-        fetchReferral(),
-      ]);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }
+    await Promise.allSettled([
+      fetchWallets(),
+      fetchBanks(),
+      fetchSettings(),
+      fetchReferral(),
+    ]);
+
+    setLoading(false);
+  }, [
+    fetchWallets,
+    fetchBanks,
+    fetchSettings,
+    fetchReferral,
+  ]);
 
   useEffect(() => {
     fetchAll();
-  }, []);
+  }, [fetchAll]);
 
   async function handleAdd(e) {
     e.preventDefault();
 
-    if (!form.address)
+    if (!form.address.trim()) {
+      alert('Enter wallet address.');
       return;
+    }
 
     setAdding(true);
 
     try {
       await api.post(
         '/wallets',
-        form
+        {
+          ...form,
+          address: form.address.trim(),
+        }
       );
 
       setForm({
-        currency:
-          'USDT_TRC20',
+        currency: 'USDT_TRC20',
         address: '',
         label: '',
         network: 'TRC20',
       });
 
       await fetchWallets();
+
+      alert('Wallet added successfully.');
     } catch (err) {
       console.error(err);
 
       alert(
-        err?.response?.data
-          ?.message ||
+        getApiError(
+          err,
           'Failed to add wallet.'
+        )
       );
     } finally {
       setAdding(false);
     }
   }
 
-  async function handleDelete(
-    id
-  ) {
+  async function handleDelete(id) {
+    if (!id) return;
+
+    const ok = window.confirm(
+      'Delete this wallet address?'
+    );
+
+    if (!ok) return;
+
+    setWalletActionId(id);
+
     try {
       await api.delete(
         `/wallets/${id}`
@@ -3564,19 +3220,23 @@ function WalletsTab({
       console.error(err);
 
       alert(
-        err?.response?.data
-          ?.message ||
+        getApiError(
+          err,
           'Failed to delete wallet.'
+        )
       );
+    } finally {
+      setWalletActionId(null);
     }
   }
 
   async function handleRateSave() {
-    const value =
-      parseFloat(inrRate);
+    const value = parseFloat(inrRate);
 
-    if (!value || value <= 0)
+    if (!value || value <= 0) {
+      alert('Enter a valid INR rate.');
       return;
+    }
 
     setRateSaving(true);
 
@@ -3589,6 +3249,8 @@ function WalletsTab({
         }
       );
 
+      setInrRate(value);
+
       alert(
         'INR rate saved successfully.'
       );
@@ -3596,9 +3258,10 @@ function WalletsTab({
       console.error(err);
 
       alert(
-        err?.response?.data
-          ?.message ||
+        getApiError(
+          err,
           'Failed to save INR rate.'
+        )
       );
     } finally {
       setRateSaving(false);
@@ -3609,8 +3272,12 @@ function WalletsTab({
     if (
       !refCode.trim() ||
       !refOwner
-    )
+    ) {
+      setRefMsg(
+        'Enter referral code and select owner.'
+      );
       return;
+    }
 
     setRefSaving(true);
     setRefMsg('');
@@ -3620,24 +3287,32 @@ function WalletsTab({
         await api.post(
           '/referrals/set-master',
           {
-            code: refCode,
-            owner_id:
-              refOwner,
+            code: refCode
+              .trim()
+              .toUpperCase(),
+            owner_id: refOwner,
           }
         );
 
-      setRefCode(
-        data.code
-      );
+      const savedCode =
+        data?.code ||
+        refCode
+          .trim()
+          .toUpperCase();
+
+      setRefCode(savedCode);
 
       setRefMsg(
-        `Saved! Signups now require code ${data.code}`
+        `Saved! Signups now require code ${savedCode}`
       );
     } catch (err) {
+      console.error(err);
+
       setRefMsg(
-        err?.response?.data
-          ?.message ||
-          'Failed to save'
+        getApiError(
+          err,
+          'Failed to save referral code.'
+        )
       );
     } finally {
       setRefSaving(false);
@@ -3645,10 +3320,17 @@ function WalletsTab({
   }
 
   async function handleTgSave() {
-    if (
-      !tgUsername.trim()
-    )
+    const username =
+      tgUsername
+        .trim()
+        .replace(/^@/, '');
+
+    if (!username) {
+      setTgMsg(
+        'Enter Telegram username.'
+      );
       return;
+    }
 
     setTgSaving(true);
     setTgMsg('');
@@ -3658,39 +3340,40 @@ function WalletsTab({
         '/settings',
         {
           key: 'support_telegram',
-          value: tgUsername
-            .trim()
-            .replace(
-              /^@/,
-              ''
-            ),
+          value: username,
         }
       );
+
+      setTgUsername(username);
 
       setTgMsg(
         'Saved! Support button updated.'
       );
     } catch (err) {
+      console.error(err);
+
       setTgMsg(
-        err?.response?.data
-          ?.message ||
-          'Failed to save'
+        getApiError(
+          err,
+          'Failed to save Telegram username.'
+        )
       );
     } finally {
       setTgSaving(false);
     }
   }
 
-  async function handleBankAdd(
-    e
-  ) {
+  async function handleBankAdd(e) {
     e.preventDefault();
 
     if (
-      !bankForm.bank_name ||
-      !bankForm.account_holder ||
-      !bankForm.account_number
+      !bankForm.bank_name.trim() ||
+      !bankForm.account_holder.trim() ||
+      !bankForm.account_number.trim()
     ) {
+      alert(
+        'Bank name, account holder and account number are required.'
+      );
       return;
     }
 
@@ -3713,30 +3396,37 @@ function WalletsTab({
       });
 
       await fetchBanks();
+
+      alert(
+        'Bank account added successfully.'
+      );
     } catch (err) {
       console.error(err);
 
       alert(
-        err?.response?.data
-          ?.message ||
+        getApiError(
+          err,
           'Failed to add bank.'
+        )
       );
     } finally {
       setBankAdding(false);
     }
   }
 
-  async function handleBankToggle(
-    bank
-  ) {
+  async function handleBankToggle(bank) {
+    const id = getId(bank);
+
+    if (!id) return;
+
+    setBankActionId(id);
+
     try {
       await api.put(
-        `/banks/${
-          bank._id || bank.id
-        }`,
+        `/banks/${id}`,
         {
           is_active:
-            !bank.is_active,
+            bank.is_active === false,
         }
       );
 
@@ -3745,16 +3435,27 @@ function WalletsTab({
       console.error(err);
 
       alert(
-        err?.response?.data
-          ?.message ||
+        getApiError(
+          err,
           'Failed to update bank.'
+        )
       );
+    } finally {
+      setBankActionId(null);
     }
   }
 
-  async function handleBankDelete(
-    id
-  ) {
+  async function handleBankDelete(id) {
+    if (!id) return;
+
+    const ok = window.confirm(
+      'Delete this bank account?'
+    );
+
+    if (!ok) return;
+
+    setBankActionId(id);
+
     try {
       await api.delete(
         `/banks/${id}`
@@ -3765,15 +3466,19 @@ function WalletsTab({
       console.error(err);
 
       alert(
-        err?.response?.data
-          ?.message ||
+        getApiError(
+          err,
           'Failed to delete bank.'
+        )
       );
+    } finally {
+      setBankActionId(null);
     }
   }
 
   return (
     <div className="space-y-4">
+
       {/* INR RATE */}
       <div className="bg-white rounded-xl shadow-sm border border-sky-100 p-4">
         <div className="flex items-center gap-2 mb-3">
@@ -3792,11 +3497,9 @@ function WalletsTab({
               step="0.01"
               value={inrRate}
               onChange={(e) =>
-                setInrRate(
-                  e.target.value
-                )
+                setInrRate(e.target.value)
               }
-              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-gray-800 text-sm"
             />
           </div>
 
@@ -3805,20 +3508,16 @@ function WalletsTab({
           </p>
 
           <button
-            onClick={
-              handleRateSave
-            }
-            disabled={
-              rateSaving
-            }
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-sky-500 hover:bg-sky-600 text-white transition-colors disabled:opacity-50"
+            type="button"
+            onClick={handleRateSave}
+            disabled={rateSaving}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-sky-500 hover:bg-sky-600 text-white disabled:opacity-50"
           >
             {rateSaving ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
             ) : (
               <Check className="w-3.5 h-3.5" />
             )}
-
             Save Rate
           </button>
         </div>
@@ -3835,15 +3534,13 @@ function WalletsTab({
         </div>
 
         <p className="text-gray-400 text-xs mb-3">
-          Only this single referral
-          code will be accepted at
-          signup. The owner earns the
-          $5 bonus for each new user.
+          Only the master referral code will be accepted at signup.
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+
           <div>
-            <label className="text-gray-400 text-[10px] font-medium uppercase tracking-wider mb-1 block">
+            <label className="text-gray-400 text-[10px] uppercase mb-1 block">
               Master Referral Code
             </label>
 
@@ -3856,79 +3553,62 @@ function WalletsTab({
                 )
               }
               placeholder="J9115UTT"
-              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-gray-800 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-gray-800 text-sm uppercase"
             />
           </div>
 
           <div>
-            <label className="text-gray-400 text-[10px] font-medium uppercase tracking-wider mb-1 block">
-              Owner Account (earns bonus)
+            <label className="text-gray-400 text-[10px] uppercase mb-1 block">
+              Owner Account
             </label>
 
             <select
               value={refOwner}
               onChange={(e) =>
-                setRefOwner(
-                  e.target.value
-                )
+                setRefOwner(e.target.value)
               }
-              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-gray-800 text-sm"
             >
               <option value="">
                 Select account
               </option>
 
-              {users.map(
-                (u) => (
-                  <option
-                    key={
-                      u._id ||
-                      u.id
-                    }
-                    value={
-                      u._id ||
-                      u.id
-                    }
-                  >
-                    {u.full_name ||
-                      u.email}{' '}
-                    (
-                    {u.email}
-                    )
-                  </option>
-                )
-              )}
+              {safeUsers.map((u) => (
+                <option
+                  key={getId(u)}
+                  value={getId(u)}
+                >
+                  {u.full_name || u.email} (
+                  {u.email || ''})
+                </option>
+              ))}
             </select>
           </div>
         </div>
 
         <div className="flex items-center gap-3 mt-3 flex-wrap">
           <button
-            onClick={
-              handleRefSave
-            }
+            type="button"
+            onClick={handleRefSave}
             disabled={
               refSaving ||
               !refCode.trim() ||
               !refOwner
             }
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-sky-500 hover:bg-sky-600 text-white transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-sky-500 text-white disabled:opacity-50"
           >
             {refSaving ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
             ) : (
               <Check className="w-3.5 h-3.5" />
             )}
-
             Save Referral Code
           </button>
 
           {refMsg && (
             <p
               className={`text-xs ${
-                refMsg.startsWith(
-                  'Saved'
-                )
+                refMsg.startsWith('Saved')
                   ? 'text-emerald-600'
                   : 'text-red-500'
               }`}
@@ -3950,9 +3630,7 @@ function WalletsTab({
         </div>
 
         <p className="text-gray-400 text-xs mb-3">
-          The floating "Chat with Support"
-          button opens this Telegram handle
-          on every page.
+          The floating support button uses this Telegram username.
         </p>
 
         <div className="flex items-center gap-3 flex-wrap">
@@ -3969,43 +3647,38 @@ function WalletsTab({
                 )
               }
               placeholder="YourTelegramBot"
-              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-gray-800 text-sm"
             />
           </div>
 
           <span className="text-gray-400 text-xs">
             t.me/
             <span className="font-semibold text-gray-600">
-              {tgUsername ||
-                '...'}
+              {tgUsername || '...'}
             </span>
           </span>
 
           <button
-            onClick={
-              handleTgSave
-            }
+            type="button"
+            onClick={handleTgSave}
             disabled={
               tgSaving ||
               !tgUsername.trim()
             }
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-sky-500 hover:bg-sky-600 text-white transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-sky-500 text-white disabled:opacity-50"
           >
             {tgSaving ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
             ) : (
               <Check className="w-3.5 h-3.5" />
             )}
-
             Save
           </button>
 
           {tgMsg && (
             <p
               className={`text-xs ${
-                tgMsg.startsWith(
-                  'Saved'
-                )
+                tgMsg.startsWith('Saved')
                   ? 'text-emerald-600'
                   : 'text-red-500'
               }`}
@@ -4018,9 +3691,7 @@ function WalletsTab({
 
       {/* BANK FORM */}
       <form
-        onSubmit={
-          handleBankAdd
-        }
+        onSubmit={handleBankAdd}
         className="bg-white rounded-xl shadow-sm border border-sky-100 p-4"
       >
         <div className="flex items-center gap-2 mb-3">
@@ -4033,77 +3704,31 @@ function WalletsTab({
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
           {[
-            [
-              'bank_name',
-              'Bank Name',
-              'HDFC Bank',
-            ],
-            [
-              'account_holder',
-              'Account Holder',
-              'Account holder name',
-            ],
-            [
-              'account_number',
-              'Account Number',
-              'Account number',
-            ],
-            [
-              'ifsc_code',
-              'IFSC Code',
-              'HDFC0001234',
-            ],
-            [
-              'upi_id',
-              'UPI ID',
-              'name@upi',
-            ],
-            [
-              'branch',
-              'Branch',
-              'Branch (optional)',
-            ],
-            [
-              'note',
-              'Note',
-              'Instruction note (optional)',
-            ],
+            ['bank_name', 'Bank Name', 'HDFC Bank'],
+            ['account_holder', 'Account Holder', 'Account holder name'],
+            ['account_number', 'Account Number', 'Account number'],
+            ['ifsc_code', 'IFSC Code', 'HDFC0001234'],
+            ['upi_id', 'UPI ID', 'name@upi'],
+            ['branch', 'Branch', 'Branch (optional)'],
+            ['note', 'Note', 'Instruction note'],
           ].map(
-            ([
-              key,
-              label,
-              placeholder,
-            ]) => (
-              <div
-                key={key}
-              >
-                <label className="text-gray-400 text-[10px] font-medium uppercase tracking-wider mb-1 block">
+            ([key, label, placeholder]) => (
+              <div key={key}>
+                <label className="text-gray-400 text-[10px] uppercase mb-1 block">
                   {label}
                 </label>
 
                 <input
                   type="text"
-                  value={
-                    bankForm[
-                      key
-                    ]
+                  value={bankForm[key]}
+                  onChange={(e) =>
+                    setBankForm((prev) => ({
+                      ...prev,
+                      [key]: e.target.value,
+                    }))
                   }
-                  onChange={(
-                    e
-                  ) =>
-                    setBankForm(
-                      {
-                        ...bankForm,
-                        [key]:
-                          e.target
-                            .value,
-                      }
-                    )
-                  }
-                  placeholder={
-                    placeholder
-                  }
-                  className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                  placeholder={placeholder}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-gray-800 text-sm"
                 />
               </div>
             )
@@ -4114,74 +3739,64 @@ function WalletsTab({
           type="submit"
           disabled={
             bankAdding ||
-            !bankForm.bank_name ||
-            !bankForm.account_holder ||
-            !bankForm.account_number
+            !bankForm.bank_name.trim() ||
+            !bankForm.account_holder.trim() ||
+            !bankForm.account_number.trim()
           }
-          className="mt-3 flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-sky-500 hover:bg-sky-600 text-white transition-colors disabled:opacity-50"
+          className="mt-3 flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-sky-500 text-white disabled:opacity-50"
         >
-          <Plus className="w-3.5 h-3.5" />
-
-          {bankAdding
-            ? 'Adding...'
-            : 'Add Bank Account'}
+          {bankAdding ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <Plus className="w-3.5 h-3.5" />
+          )}
+          {bankAdding ? 'Adding...' : 'Add Bank Account'}
         </button>
       </form>
 
       {/* BANK LIST */}
-      {banks.length >
-        0 && (
+      {banks.length > 0 && (
         <div className="bg-white rounded-xl shadow-sm border border-sky-100 p-4">
           <div className="flex items-center gap-2 mb-3">
             <Landmark className="w-4 h-4 text-sky-500" />
 
             <h4 className="text-gray-900 text-sm font-semibold">
-              Bank Accounts (
-              {banks.length})
+              Bank Accounts ({banks.length})
             </h4>
           </div>
 
           <div className="space-y-2">
-            {banks.map(
-              (b) => (
+            {banks.map((b) => {
+              const id = getId(b);
+              const busy = bankActionId === id;
+
+              return (
                 <div
-                  key={
-                    b._id ||
-                    b.id
-                  }
+                  key={id}
                   className="flex items-center justify-between gap-3 rounded-lg border border-gray-100 p-3"
                 >
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-gray-800 text-sm font-semibold">
-                        {
-                          b.bank_name
-                        }
+                        {b.bank_name || '-'}
                       </p>
 
                       <span
                         className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                          b.is_active ===
-                          false
+                          b.is_active === false
                             ? 'bg-red-50 text-red-600'
                             : 'bg-emerald-50 text-emerald-600'
                         }`}
                       >
-                        {b.is_active ===
-                        false
+                        {b.is_active === false
                           ? 'Inactive'
                           : 'Active'}
                       </span>
                     </div>
 
                     <p className="text-gray-400 text-xs mt-0.5">
-                      {
-                        b.account_holder
-                      }{' '}
-                      ·{' '}
-                      {
-                        b.account_number
-                      }
+                      {b.account_holder || ''} ·{' '}
+                      {b.account_number || ''}
                       {b.ifsc_code
                         ? ` · ${b.ifsc_code}`
                         : ''}
@@ -4193,46 +3808,44 @@ function WalletsTab({
 
                   <div className="flex items-center gap-1.5 flex-shrink-0">
                     <button
+                      type="button"
+                      disabled={busy}
                       onClick={() =>
-                        handleBankToggle(
-                          b
-                        )
+                        handleBankToggle(b)
                       }
-                      className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors ${
-                        b.is_active ===
-                        false
-                          ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
-                          : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                      className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium disabled:opacity-50 ${
+                        b.is_active === false
+                          ? 'bg-emerald-50 text-emerald-600'
+                          : 'bg-gray-100 text-gray-500'
                       }`}
                     >
-                      {b.is_active ===
-                      false ? (
+                      {busy ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : b.is_active === false ? (
                         <ToggleRight className="w-3.5 h-3.5" />
                       ) : (
                         <ToggleLeft className="w-3.5 h-3.5" />
                       )}
 
-                      {b.is_active ===
-                      false
+                      {b.is_active === false
                         ? 'Activate'
                         : 'Deactivate'}
                     </button>
 
                     <button
+                      type="button"
+                      disabled={busy}
                       onClick={() =>
-                        handleBankDelete(
-                          b._id ||
-                            b.id
-                        )
+                        handleBankDelete(id)
                       }
-                      className="p-2 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
+                      className="p-2 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 disabled:opacity-50"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
-              )
-            )}
+              );
+            })}
           </div>
         </div>
       )}
@@ -4247,41 +3860,34 @@ function WalletsTab({
         </h4>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+
           <div>
-            <label className="text-gray-400 text-[10px] font-medium uppercase tracking-wider mb-1 block">
+            <label className="text-gray-400 text-[10px] uppercase mb-1 block">
               Currency
             </label>
 
             <select
-              value={
-                form.currency
-              }
+              value={form.currency}
               onChange={(e) =>
-                setForm({
-                  ...form,
-                  currency:
-                    e.target
-                      .value,
-                })
+                setForm((prev) => ({
+                  ...prev,
+                  currency: e.target.value,
+                }))
               }
-              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-gray-800 text-sm"
             >
               <option value="USDT_TRC20">
                 USDT (TRC20)
               </option>
-
               <option value="USDT_ERC20">
                 USDT (ERC20)
               </option>
-
               <option value="BTC">
                 Bitcoin (BTC)
               </option>
-
               <option value="ETH">
                 Ethereum (ETH)
               </option>
-
               <option value="USDC">
                 USD Coin (USDC)
               </option>
@@ -4289,89 +3895,63 @@ function WalletsTab({
           </div>
 
           <div>
-            <label className="text-gray-400 text-[10px] font-medium uppercase tracking-wider mb-1 block">
+            <label className="text-gray-400 text-[10px] uppercase mb-1 block">
               Address
             </label>
 
             <input
               type="text"
-              value={
-                form.address
-              }
+              value={form.address}
               onChange={(e) =>
-                setForm({
-                  ...form,
-                  address:
-                    e.target
-                      .value,
-                })
+                setForm((prev) => ({
+                  ...prev,
+                  address: e.target.value,
+                }))
               }
               placeholder="Wallet address"
-              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-gray-800 text-sm"
             />
           </div>
 
           <div>
-            <label className="text-gray-400 text-[10px] font-medium uppercase tracking-wider mb-1 block">
+            <label className="text-gray-400 text-[10px] uppercase mb-1 block">
               Label
             </label>
 
             <input
               type="text"
-              value={
-                form.label
-              }
+              value={form.label}
               onChange={(e) =>
-                setForm({
-                  ...form,
-                  label:
-                    e.target
-                      .value,
-                })
+                setForm((prev) => ({
+                  ...prev,
+                  label: e.target.value,
+                }))
               }
               placeholder="Label (optional)"
-              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-gray-800 text-sm"
             />
           </div>
 
           <div>
-            <label className="text-gray-400 text-[10px] font-medium uppercase tracking-wider mb-1 block">
+            <label className="text-gray-400 text-[10px] uppercase mb-1 block">
               Network
             </label>
 
             <select
-              value={
-                form.network
-              }
+              value={form.network}
               onChange={(e) =>
-                setForm({
-                  ...form,
-                  network:
-                    e.target
-                      .value,
-                })
+                setForm((prev) => ({
+                  ...prev,
+                  network: e.target.value,
+                }))
               }
-              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-gray-800 text-sm"
             >
-              <option value="TRC20">
-                TRC20
-              </option>
-
-              <option value="ERC20">
-                ERC20
-              </option>
-
-              <option value="BEP20">
-                BEP20
-              </option>
-
-              <option value="BTC">
-                Bitcoin
-              </option>
-
-              <option value="SPL">
-                SPL
-              </option>
+              <option value="TRC20">TRC20</option>
+              <option value="ERC20">ERC20</option>
+              <option value="BEP20">BEP20</option>
+              <option value="BTC">Bitcoin</option>
+              <option value="SPL">SPL</option>
             </select>
           </div>
         </div>
@@ -4380,15 +3960,16 @@ function WalletsTab({
           type="submit"
           disabled={
             adding ||
-            !form.address
+            !form.address.trim()
           }
-          className="mt-3 flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-sky-500 hover:bg-sky-600 text-white transition-colors disabled:opacity-50"
+          className="mt-3 flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold bg-sky-500 text-white disabled:opacity-50"
         >
-          <Plus className="w-3.5 h-3.5" />
-
-          {adding
-            ? 'Adding...'
-            : 'Add Wallet'}
+          {adding ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <Plus className="w-3.5 h-3.5" />
+          )}
+          {adding ? 'Adding...' : 'Add Wallet'}
         </button>
       </form>
 
@@ -4397,8 +3978,7 @@ function WalletsTab({
         <div className="flex justify-center py-12">
           <div className="w-8 h-8 border-4 border-sky-200 border-t-sky-500 rounded-full animate-spin" />
         </div>
-      ) : wallets.length ===
-        0 ? (
+      ) : wallets.length === 0 ? (
         <div className="text-center py-12">
           <WalletCards className="w-12 h-12 text-gray-300 mx-auto mb-3" />
 
@@ -4408,30 +3988,29 @@ function WalletsTab({
         </div>
       ) : (
         <div className="space-y-2">
-          {wallets.map(
-            (w) => (
+          {wallets.map((w) => {
+            const id = getId(w);
+            const busy =
+              walletActionId === id;
+
+            return (
               <div
-                key={
-                  w._id ||
-                  w.id
-                }
+                key={id}
                 className="bg-white rounded-xl shadow-sm border border-sky-100 p-4 flex items-center justify-between gap-3"
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-sky-50 flex items-center justify-center flex-shrink-0">
+                  <div className="w-10 h-10 rounded-xl bg-sky-50 flex items-center justify-center">
                     <Wallet className="w-5 h-5 text-sky-500" />
                   </div>
 
                   <div className="min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-sky-50 text-sky-600">
-                        {w.currency ||
-                          'USDT'}
+                        {w.currency || 'USDT'}
                       </span>
 
                       <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-500 border border-gray-200">
-                        {w.network ||
-                          'TRC20'}
+                        {w.network || 'TRC20'}
                       </span>
 
                       {w.label && (
@@ -4442,25 +4021,28 @@ function WalletsTab({
                     </div>
 
                     <p className="text-gray-800 text-xs font-mono truncate mt-1">
-                      {w.address}
+                      {w.address || '-'}
                     </p>
                   </div>
                 </div>
 
                 <button
+                  type="button"
+                  disabled={busy}
                   onClick={() =>
-                    handleDelete(
-                      w._id ||
-                        w.id
-                    )
+                    handleDelete(id)
                   }
-                  className="flex-shrink-0 p-2 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
+                  className="flex-shrink-0 p-2 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 disabled:opacity-50"
                 >
-                  <Trash2 className="w-4 h-4" />
+                  {busy ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-4 h-4" />
+                  )}
                 </button>
               </div>
-            )
-          )}
+            );
+          })}
         </div>
       )}
     </div>
@@ -4477,8 +4059,7 @@ export default function Admin() {
     loading: authLoading,
   } = useAuth();
 
-  const navigate =
-    useNavigate();
+  const navigate = useNavigate();
 
   const [activeTab, setActiveTab] =
     useState('users');
@@ -4495,6 +4076,59 @@ export default function Admin() {
   const [loading, setLoading] =
     useState(true);
 
+  const fetchAdminData = useCallback(
+    async () => {
+      setLoading(true);
+
+      try {
+        const [
+          statsRes,
+          usersRes,
+        ] = await Promise.allSettled([
+          api.get('/admin/stats'),
+          api.get('/admin/users'),
+        ]);
+
+        if (
+          statsRes.status ===
+          'fulfilled'
+        ) {
+          const statsData =
+            statsRes.value?.data;
+
+          setStats(
+            statsData &&
+              typeof statsData ===
+                'object'
+              ? statsData
+              : {}
+          );
+        } else {
+          setStats({});
+        }
+
+        if (
+          usersRes.status ===
+          'fulfilled'
+        ) {
+          setUsers(
+            asArray(
+              usersRes.value?.data,
+              ['users', 'data']
+            )
+          );
+        } else {
+          setUsers([]);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    },
+    []
+  );
+
   useEffect(() => {
     if (
       !authLoading &&
@@ -4502,7 +4136,8 @@ export default function Admin() {
       user.role !== 'admin'
     ) {
       navigate(
-        '/dashboard'
+        '/dashboard',
+        { replace: true }
       );
     }
   }, [
@@ -4510,62 +4145,6 @@ export default function Admin() {
     authLoading,
     navigate,
   ]);
-
-  async function fetchAdminData() {
-    setLoading(true);
-
-    try {
-      const [
-        statsRes,
-        usersRes,
-      ] =
-        await Promise.allSettled(
-          [
-            api.get(
-              '/admin/stats'
-            ),
-            api.get(
-              '/admin/users'
-            ),
-          ]
-        );
-
-      if (
-        statsRes.status ===
-        'fulfilled'
-      ) {
-        setStats(
-          statsRes.value
-            .data
-        );
-      }
-
-      if (
-        usersRes.status ===
-        'fulfilled'
-      ) {
-        const udata =
-          usersRes.value
-            .data;
-
-        setUsers(
-          Array.isArray(
-            udata
-          )
-            ? udata
-            : Array.isArray(
-                udata.users
-              )
-            ? udata.users
-            : []
-        );
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }
 
   useEffect(() => {
     if (
@@ -4577,6 +4156,7 @@ export default function Admin() {
   }, [
     authLoading,
     user,
+    fetchAdminData,
   ]);
 
   if (
@@ -4592,46 +4172,104 @@ export default function Admin() {
     return <Spinner />;
   }
 
+  const safeUsers =
+    Array.isArray(users)
+      ? users
+      : [];
+
   const filteredUsers =
-    users.filter((u) => {
-      if (!searchQuery)
+    safeUsers.filter((u) => {
+      if (!searchQuery.trim())
         return true;
 
       const q =
         searchQuery.toLowerCase();
 
       return (
-        u.full_name
-          ?.toLowerCase()
+        String(
+          u.full_name || ''
+        )
+          .toLowerCase()
           .includes(q) ||
-        u.email
-          ?.toLowerCase()
+        String(
+          u.email || ''
+        )
+          .toLowerCase()
           .includes(q) ||
-        u.mobile?.includes(q)
+        String(
+          u.mobile || ''
+        ).includes(q)
       );
     });
 
+  const totalUsers =
+    stats?.total_users ??
+    stats?.totalUsers ??
+    safeUsers.length ??
+    0;
+
+  const totalTrades =
+    stats?.total_trades ??
+    stats?.totalTrades ??
+    0;
+
+  const activeTrades =
+    stats?.active_trades ??
+    stats?.activeTrades ??
+    0;
+
+  const pendingTransactions =
+    stats?.pending_transactions ??
+    stats?.pendingTransactions ??
+    0;
+
+  const totalDeposits =
+    stats?.total_deposits ??
+    stats?.totalDeposits ??
+    0;
+
+  const totalWithdrawals =
+    stats?.total_withdrawals ??
+    stats?.totalWithdrawals ??
+    0;
+
   return (
     <div className="min-h-screen bg-gray-50 relative overflow-hidden">
+
       <div className="relative z-10 p-4 md:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
+
         {/* HEADER */}
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-sky-50 flex items-center justify-center">
-            <ShieldCheck className="w-7 h-7 text-sky-500" />
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-sky-50 flex items-center justify-center">
+              <ShieldCheck className="w-7 h-7 text-sky-500" />
+            </div>
+
+            <div>
+              <h1 className="font-heading text-2xl font-bold text-gray-900">
+                Admin Panel
+              </h1>
+
+              <p className="text-gray-400 text-sm">
+                Manage users, transactions, trades, wallets and notifications
+              </p>
+            </div>
           </div>
 
-          <div>
-            <h1 className="font-heading text-2xl font-bold text-gray-900">
-              Admin Panel
-            </h1>
-
-            <p className="text-gray-400 text-sm">
-              Manage users,
-              transactions, trades,
-              wallets and
-              notifications
-            </p>
-          </div>
+          <button
+            type="button"
+            onClick={fetchAdminData}
+            disabled={loading}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-sky-100 text-gray-500 hover:bg-gray-50 text-xs font-medium disabled:opacity-50"
+          >
+            <RefreshCw
+              className={`w-4 h-4 ${
+                loading ? 'animate-spin' : ''
+              }`}
+            />
+            Refresh
+          </button>
         </div>
 
         {loading ? (
@@ -4641,152 +4279,112 @@ export default function Admin() {
         ) : (
           <>
             {/* STATS */}
-            {stats && (
-              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-                <StatCard
-                  icon={Users}
-                  label="Total Users"
-                  value={
-                    stats.total_users ??
-                    stats.totalUsers ??
-                    0
-                  }
-                  color="sky"
-                />
+            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
 
-                <StatCard
-                  icon={
-                    ArrowLeftRight
-                  }
-                  label="Total Trades"
-                  value={
-                    stats.total_trades ??
-                    stats.totalTrades ??
-                    0
-                  }
-                  color="blue"
-                />
+              <StatCard
+                icon={Users}
+                label="Total Users"
+                value={totalUsers}
+                color="sky"
+              />
 
-                <StatCard
-                  icon={Activity}
-                  label="Active Trades"
-                  value={
-                    stats.active_trades ??
-                    stats.activeTrades ??
-                    0
-                  }
-                  color="violet"
-                />
+              <StatCard
+                icon={ArrowLeftRight}
+                label="Total Trades"
+                value={totalTrades}
+                color="blue"
+              />
 
-                <StatCard
-                  icon={Clock}
-                  label="Pending Txns"
-                  value={
-                    stats.pending_transactions ??
-                    stats.pendingTransactions ??
-                    0
-                  }
-                  color="red"
-                />
+              <StatCard
+                icon={Activity}
+                label="Active Trades"
+                value={activeTrades}
+                color="violet"
+              />
 
-                <StatCard
-                  icon={
-                    TrendingUp
-                  }
-                  label="Total Deposits"
-                  value={formatCurrency(
-                    stats.total_deposits ??
-                      stats.totalDeposits ??
-                      0
-                  )}
-                  color="emerald"
-                />
+              <StatCard
+                icon={Clock}
+                label="Pending Txns"
+                value={pendingTransactions}
+                color="red"
+              />
 
-                <StatCard
-                  icon={
-                    TrendingDown
-                  }
-                  label="Total Withdrawals"
-                  value={formatCurrency(
-                    stats.total_withdrawals ??
-                      stats.totalWithdrawals ??
-                      0
-                  )}
-                  color="cyan"
-                />
-              </div>
-            )}
+              <StatCard
+                icon={TrendingUp}
+                label="Total Deposits"
+                value={formatCurrency(
+                  num(totalDeposits)
+                )}
+                color="emerald"
+              />
+
+              <StatCard
+                icon={TrendingDown}
+                label="Total Withdrawals"
+                value={formatCurrency(
+                  num(totalWithdrawals)
+                )}
+                color="cyan"
+              />
+            </div>
 
             {/* TABS */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 bg-white p-1.5 rounded-xl shadow-sm border border-sky-100">
-              {TABS.map(
-                (tab) => {
-                  const TabIcon =
-                    tab.icon;
+              {TABS.map((tab) => {
+                const TabIcon =
+                  tab.icon;
 
-                  return (
-                    <button
-                      key={
+                return (
+                  <button
+                    type="button"
+                    key={tab.id}
+                    onClick={() =>
+                      setActiveTab(
                         tab.id
-                      }
-                      onClick={() =>
-                        setActiveTab(
-                          tab.id
-                        )
-                      }
-                      className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                        activeTab ===
-                        tab.id
-                          ? 'bg-sky-50 text-sky-600 shadow-sm'
-                          : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
-                      }`}
-                    >
-                      <TabIcon className="w-4 h-4" />
+                      )
+                    }
+                    className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                      activeTab === tab.id
+                        ? 'bg-sky-50 text-sky-600 shadow-sm'
+                        : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    <TabIcon className="w-4 h-4" />
 
-                      <span>
-                        {
-                          tab.label
-                        }
-                      </span>
-                    </button>
-                  );
-                }
-              )}
+                    <span>
+                      {tab.label}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
 
             {/* CONTENT */}
             <div className="animate-fade-in">
+
               {/* USERS */}
-              {activeTab ===
-                'users' && (
+              {activeTab === 'users' && (
                 <div className="space-y-4">
+
                   <div className="flex items-center gap-3">
                     <div className="relative flex-1 max-w-md">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
 
                       <input
                         type="text"
-                        value={
-                          searchQuery
-                        }
-                        onChange={(
-                          e
-                        ) =>
+                        value={searchQuery}
+                        onChange={(e) =>
                           setSearchQuery(
-                            e.target
-                              .value
+                            e.target.value
                           )
                         }
                         placeholder="Search users..."
-                        className="w-full bg-white border border-sky-100 rounded-lg pl-10 pr-4 py-2.5 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 placeholder:text-gray-400 shadow-sm"
+                        className="w-full bg-white border border-sky-100 rounded-lg pl-10 pr-4 py-2.5 text-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 shadow-sm"
                       />
                     </div>
 
                     <span className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-500 text-xs font-medium border border-gray-200">
-                      {
-                        filteredUsers.length
-                      }{' '}
-                      users
+                      {filteredUsers.length} users
                     </span>
                   </div>
 
@@ -4794,10 +4392,7 @@ export default function Admin() {
                     {filteredUsers.map(
                       (u) => (
                         <UserCard
-                          key={
-                            u._id ||
-                            u.id
-                          }
+                          key={getId(u)}
                           user={u}
                           onRefresh={
                             fetchAdminData
@@ -4812,8 +4407,7 @@ export default function Admin() {
                         <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
 
                         <p className="text-gray-400 text-sm">
-                          No users
-                          found
+                          No users found
                         </p>
                       </div>
                     )}
@@ -4822,8 +4416,7 @@ export default function Admin() {
               )}
 
               {/* VERIFY */}
-              {activeTab ===
-                'verify' && (
+              {activeTab === 'verify' && (
                 <VerifyTab
                   onRefresh={
                     fetchAdminData
@@ -4832,22 +4425,19 @@ export default function Admin() {
               )}
 
               {/* TRANSACTIONS */}
-              {activeTab ===
-                'txns' && (
+              {activeTab === 'txns' && (
                 <TransactionsTab />
               )}
 
               {/* TRADES */}
-              {activeTab ===
-                'data' && (
+              {activeTab === 'data' && (
                 <TradeDataTab />
               )}
 
               {/* WALLETS */}
-              {activeTab ===
-                'wallets' && (
+              {activeTab === 'wallets' && (
                 <WalletsTab
-                  users={users}
+                  users={safeUsers}
                 />
               )}
 
@@ -4855,7 +4445,7 @@ export default function Admin() {
               {activeTab ===
                 'notifications' && (
                 <NotificationsTab
-                  users={users}
+                  users={safeUsers}
                 />
               )}
             </div>
