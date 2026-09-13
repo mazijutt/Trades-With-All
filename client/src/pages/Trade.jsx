@@ -370,27 +370,28 @@ export default function Trade() {
      */
     const candles = ohlcData
       .map((point) => {
-        if (
-          !Array.isArray(point) ||
-          point.length < 5
-        ) {
-          return null;
-        }
+        // Backend /prices/ohlc returns objects:
+        // { time, open, high, low, close }
+        // Also accept array format for compatibility.
+        const timestamp = Array.isArray(point)
+          ? Number(point[0])
+          : Number(point?.time);
 
-        const timestamp =
-          Number(point[0]);
+        const open = Array.isArray(point)
+          ? Number(point[1])
+          : Number(point?.open);
 
-        const open =
-          Number(point[1]);
+        const high = Array.isArray(point)
+          ? Number(point[2])
+          : Number(point?.high);
 
-        const high =
-          Number(point[2]);
+        const low = Array.isArray(point)
+          ? Number(point[3])
+          : Number(point?.low);
 
-        const low =
-          Number(point[3]);
-
-        const close =
-          Number(point[4]);
+        const close = Array.isArray(point)
+          ? Number(point[4])
+          : Number(point?.close);
 
         if (
           !Number.isFinite(timestamp) ||
@@ -402,8 +403,14 @@ export default function Trade() {
           return null;
         }
 
+        // Binance backend returns seconds.
+        // If milliseconds are ever returned, normalize them too.
+        const time = timestamp > 100000000000
+          ? Math.floor(timestamp / 1000)
+          : Math.floor(timestamp);
+
         return {
-          time: Math.floor(timestamp / 1000),
+          time,
           open,
           high,
           low,
@@ -462,7 +469,7 @@ export default function Trade() {
         CRYPTO_CONFIG[selectedCrypto].coinId;
 
       const { data } = await api.get(
-        `/prices/ohlc/${coinId}?days=1`
+        `/prices/ohlc/${coinId}?interval=15m&limit=96`
       );
 
       if (
