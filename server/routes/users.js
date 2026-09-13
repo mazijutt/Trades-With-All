@@ -30,9 +30,17 @@ router.get('/:id', protect, async (req, res) => {
     const user = await User.findById(req.params.id).select('+withdrawal_password');
     if (!user) return res.status(404).json({ message: 'User not found' });
     const obj = user.toJSON();
-    obj.has_withdrawal_password = !!user.withdrawal_password;
-    delete obj.withdrawal_password;
-    res.json(obj);
+
+obj.has_withdrawal_password = !!user.withdrawal_password;
+
+obj.balance = Number(user.balance || 0);
+obj.frozen_balance = Number(user.frozen_balance || 0);
+obj.available_balance =
+  Math.max(0, obj.balance - obj.frozen_balance);
+
+delete obj.withdrawal_password;
+
+res.json(obj);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
