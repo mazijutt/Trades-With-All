@@ -655,7 +655,7 @@ function VerifyTab({ onRefresh }) {
                     Verify
                   </button>
                   <button
-                    onClick={() => onClick={() => handleVerify(u._id || u.id, 'unverified')}(u._id || u.id, 'verified')}
+                    onClick={() => handleVerify(u._id || u.id, 'unverified')}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
                   >
                     <XCircle className="w-3.5 h-3.5" />
