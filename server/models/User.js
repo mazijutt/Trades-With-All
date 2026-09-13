@@ -8,6 +8,10 @@ const userSchema = new mongoose.Schema({
   role: { type: String, enum: ['user', 'admin'], default: 'user' },
   avatar: { type: String, default: '' },
   balance: { type: Number, default: 0 },
+  frozen_balance: {
+  type: Number,
+  default: 0,
+},
   total_profit: { type: Number, default: 0 },
   total_deposited: { type: Number, default: 0 },
   total_withdrawn: { type: Number, default: 0 },
