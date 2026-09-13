@@ -5,9 +5,15 @@ import { getCryptoPrices, getOHLC, getCoinId } from '../utils/prices.js';
 const router = express.Router();
 
 const COIN_ID_MAP = {
-  'bitcoin': 'BTC', 'ethereum': 'ETH', 'binancecoin': 'BNB',
-  'solana': 'SOL', 'ripple': 'XRP', 'dogecoin': 'DOGE',
-  'cardano': 'ADA', 'polkadot': 'DOT',
+  bitcoin: 'BTC',
+  ethereum: 'ETH',
+  binancecoin: 'BNB',
+  solana: 'SOL',
+  ripple: 'XRP',
+  dogecoin: 'DOGE',
+  cardano: 'ADA',
+  polkadot: 'DOT',
+  bitshares: 'BTS',
 };
 
 function resolveSymbol(input) {
